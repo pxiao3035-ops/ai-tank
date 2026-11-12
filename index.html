@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);box-sizing:border-box}*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style></head><body><script>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="AI 坦克大战"><style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);box-sizing:border-box}*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style></head><body><script>
 /* 独立部署时的联机通道：用 WebSocket 连同一个网址下的 /ws，对游戏提供和 Claude 页面里一样的“房间”接口 */
 (function () {
   if (window.claude && window.claude.use) return;
@@ -67,7 +67,11 @@
   --cursor: none; color-scheme: dark;
 }
 #app[data-style="neon"] { --bg: #060a14; --panel: #0b1322; --panel2: #131d31; --line: #27364f; --ink: #e6f1ff; --dim: #8e9dba; --gold: #ffd400; --gold-d: #8a7400; --brick: #ff7a3c; }
-html, body { height: 100%; }
+html, body { height: 100%; overscroll-behavior: none; }
+/* 防误触：整页不许选中文字、不弹长按菜单、不许双击放大；对局中连滚动和双指缩放也关掉 */
+#app { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+#app:not([data-mode="menu"]) #stage { touch-action: none; }
+#app input, #app textarea { -webkit-user-select: text; user-select: text; }
 body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); overflow: hidden; -webkit-tap-highlight-color: transparent; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: 0; padding: 0; text-align: left; }
@@ -2836,6 +2840,10 @@ const UI = {
     addEventListener('keydown', e => { if (Game.net && Game.state === 'play' && !Game.menu && /^Digit[123]$/.test(e.code) && !e.repeat) Net.signal(+e.code.slice(5) - 1); });
     Input.onAny = () => { Game.S.init(); const t = this.isTouch(); if (t !== this.touchWas) this.layout(); };
     addEventListener('pointerdown', () => Game.S.init(), { passive: true });
+    // 防误触：禁止双指缩放和双击放大；对局中手指在战场上滑动不带动页面
+    for (const k of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(k, e => e.preventDefault(), { passive: false });
+    document.addEventListener('touchmove', e => { if (e.touches.length > 1 || (this.app.dataset.mode !== 'menu' && !(e.target.closest && e.target.closest('#ui, #dlg, #train')))) e.preventDefault(); }, { passive: false });
+    document.addEventListener('dblclick', e => e.preventDefault());
     this.ui.addEventListener('click', e => { if (e.target.closest('button')) Game.S.play('click'); });
   },
   isTouch() { const m = Save.data.set.input; if (m === 'touch') return true; if (m === 'kbd' || m === 'pad') return false; return Input.device === 'touch' || (!Input.device && matchMedia('(pointer: coarse)').matches); },
