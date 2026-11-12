@@ -2625,7 +2625,8 @@ TXT.menu.bf = ['大战场 3D', '超大地图 · 第一人称 · 车身炮塔分�
 TXT.bf = {
   intro: '从炮塔里往外看的 3D 坦克战。超大地图上两队混战，被击毁 3 秒后重生，先拿到目标击杀数的一队获胜。',
   size: '人数', map: '地图', maps: ['大 48×48', '超大 64×64', '巨型 96×96'], go: '出击', fire: '开火',
-  how: '怎么操作', howList: ['手机 / 平板：左手摇杆开车（上下进退、左右转车身），右半屏滑动转炮塔，右下角按住开火', '键盘：W S 进退，A D 转车身，← → 或 Q E 转炮塔，空格或 J 开火', '鼠标：点一下画面后，移动鼠标转炮塔，按住左键开火；Esc 暂停', '右上角小地图：白点是你，黄线是车身朝向，扇形是炮塔视野；红点是被队友发现的敌人', '砖墙两炮打穿，钢墙打不动，水过不去但炮弹能飞过'],
+  how: '怎么操作', howList: ['手机 / 平板：左手摇杆开车（上下进退、左右转车身），右半屏滑动转炮塔，右下角按住开火', '键盘：W S 进退，A D 转车身，← → 或 Q E 转炮塔，空格或 J 开火', '鼠标：点一下画面后，移动鼠标转炮塔，按住左键开火；Esc 暂停', '右上角小地图：白点是你，黄线是车身朝向，扇形是炮塔视野；红点是被队友发现的敌人', '地形：砖墙两炮打穿；钢墙和高楼打不动；水过不去但炮弹能飞过', '草丛里敌人看不见你（走到跟前才行）；冰面打滑；泥地慢；公路快；停在绿色十字的维修站上回血'],
+  q: '清晰度', qs: ['标准', '高', '超高'], qNote: '卡的话调低一档',
   ready: '准备… {0}', dead: '被击毁，{0} 秒后重生', helpTouch: '左手开车 · 右手滑动转炮塔 · 按住开火', helpKey: 'W A S D 开车 · ← → 或鼠标转炮塔 · 空格开火',
   kd: '击毁 {0} · 阵亡 {1}', you: '你', team: ['黄队', '红队'], result: '黄队 {0} : {1} 红队 · 你击毁 {2}、阵亡 {3} · 获得 ◆ {4}',
 };
@@ -3635,8 +3636,10 @@ UI.editorScreen = function () {
  *   - AI：每队一张“到最近敌人还有多远”的路线图，沿着它走；看见敌人就转炮塔开火，挡路的砖墙就打掉。
  * 这个模式只有单机，不联机。
  * ===================================================================== */
+// 地形：0 平地 1 砖墙 2 钢墙 3 水 4 草丛 5 冰面 6 高楼 7 泥地 8 公路 9 维修站
+const BF_SOLID = [0, 1, 1, 1, 0, 0, 1, 0, 0, 0], BF_BLOCK = [0, 1, 1, 0, 0, 0, 1, 0, 0, 0];      // 挡坦克的 / 挡炮弹和视线的
 const BF = {
-  on: false, built: false, paused: false, over: false, opt: { n: 8, size: 64, ai: 3 },
+  on: false, built: false, paused: false, over: false, opt: { n: 8, size: 64, ai: 3, q: 720 },
   N: 0, m: null, bhp: null, tanks: [], bullets: [], fx: [], score: [0, 0], target: 0, me: null, time: 0, acc: 0, last: 0, feed: [], fieldT: 0, seenT: 0, startT: 0,
   keys: {}, stick: { id: null, ox: 0, oy: 0, x: 0, y: 0 }, look: { id: null, lx: 0 }, lookAcc: 0, fireHeld: false, mouseFire: false,
   W: 0, H: 0, img: null, buf: null, zbuf: null, tex: null, kick: 0, mapCv: null, mapDirty: true,
@@ -3649,7 +3652,7 @@ const BF = {
     this.field = [new Int16Array(N * N), new Int16Array(N * N)]; this.queue = new Int32Array(N * N);
     for (let t = 0; t < 2; t++) for (let i = 0; i < o.n; i++) {
       const human = t === 0 && i === 0, lvl = clamp(o.ai + (i % 3 === 2 ? 1 : 0) - (i % 4 === 3 ? 1 : 0), 1, 5);
-      const k = { id: this.tanks.length, team: t, human, x: 0, y: 0, ha: 0, ta: 0, hp: 0, max: human ? 5 : 3, cd: 0, alive: false, respawn: 0, shield: 0, kills: 0, deaths: 0, seen: false, hitT: 0, thr: 0, lvl, ai: human ? null : { t: Math.random() * 0.3, tg: null, los: false, gx: 0, gy: 0, brick: false, err: 0, side: Math.random() < 0.5 ? 1 : -1, seeT: 0, stuckT: 0, sdir: 1, px: 0, py: 0, pt: 0 } };
+      const k = { id: this.tanks.length, team: t, human, x: 0, y: 0, ha: 0, ta: 0, hp: 0, max: human ? 5 : 3, cd: 0, alive: false, respawn: 0, shield: 0, v: 0, heal: 0, hid: false, kills: 0, deaths: 0, seen: false, hitT: 0, thr: 0, lvl, ai: human ? null : { t: Math.random() * 0.3, tg: null, los: false, gx: 0, gy: 0, brick: false, err: 0, side: Math.random() < 0.5 ? 1 : -1, seeT: 0, stuckT: 0, sdir: 1, px: 0, py: 0, pt: 0 } };
       this.tanks.push(k); this.spawn(k);
     }
     this.me = this.tanks[0]; this.keys = {}; this.stick.id = null; this.stick.x = this.stick.y = 0; this.look.id = null; this.lookAcc = 0; this.fireHeld = this.mouseFire = false;
@@ -3668,27 +3671,31 @@ const BF = {
       const walls = Math.round(N * N / 55);
       for (let k = 0; k < walls; k++) { const x = 2 + (Math.random() * (N - 4)) | 0, y = 2 + (Math.random() * (N / 2)) | 0, len = 2 + (Math.random() * 6) | 0, hz = Math.random() < 0.5, v = Math.random() < 0.2 ? 2 : 1, thick = Math.random() < 0.25 ? 2 : 1; for (let i = 0; i < len; i++) for (let j = 0; j < thick; j++) set(hz ? x + i : x + j, hz ? y + j : y + i, v); }
       for (let k = 0; k < N / 10; k++) { const x = 4 + (Math.random() * (N - 10)) | 0, y = 10 + (Math.random() * (N / 2 - 12)) | 0, w = 2 + (Math.random() * 4) | 0, hh = 2 + (Math.random() * 3) | 0; for (let i = 0; i < w; i++) for (let j = 0; j < hh; j++) if (Math.random() < 0.85) set(x + i, y + j, 3); }
-      for (let y = N - 9; y <= N - 2; y++) for (let x = 1; x <= N - 2; x++) set(x, y, 0);      // 出生区清空
+      const patch = (v, cnt, lo, hi, fillp) => { for (let k = 0; k < cnt; k++) { const w = lo + (Math.random() * (hi - lo + 1)) | 0, hh = lo + (Math.random() * (hi - lo + 1)) | 0, x = 3 + (Math.random() * (N - 6 - w)) | 0, y = 10 + (Math.random() * (N / 2 - 10)) | 0; for (let i = 0; i < w; i++) for (let j = 0; j < hh; j++) if (Math.random() < fillp) set(x + i, y + j, v); } };
+      patch(4, N / 5, 2, 5, 0.8); patch(5, N / 14, 4, 7, 0.95); patch(7, N / 12, 3, 6, 0.9); patch(6, N / 9, 2, 3, 1);      // 草丛、冰面、泥地、高楼
+      const mid = N >> 1; for (let i = 1; i <= N - 2; i++) { set(mid - 1, i, 8); set(mid, i, 8); if (N >= 64) { set((N * 0.22) | 0, i, 8); } set(i, mid - 1, 8); set(i, mid, 8); }      // 公路：贯穿南北和东西，保证走得通
+      for (const fx of [0.3, 0.7]) { const x = (N * fx) | 0, y = (N * 0.33) | 0; for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) set(x + i, y + j, i || j ? 0 : 9); }      // 维修站
+      for (let y = N - 9; y <= N - 2; y++) for (let x = 1; x <= N - 2; x++) if (m[y * N + x] !== 8) set(x, y, 0);      // 出生区清空
       this.bhp.fill(0); for (let i = 0; i < N * N; i++) if (m[i] === 1) this.bhp[i] = 2;
       if (this.connected()) return;
     }
   },
-  connected() { const N = this.N, m = this.m, seen = new Uint8Array(N * N), q = [(N - 4) * N + (N >> 1)]; seen[q[0]] = 1; const goal = 3 * N + (N >> 1); while (q.length) { const c = q.pop(); if (c === goal) return true; for (const d of [1, -1, N, -N]) { const n = c + d; if (!seen[n] && m[n] < 2) { seen[n] = 1; q.push(n); } } } return false; },
-  solid(x, y) { const N = this.N; x |= 0; y |= 0; return x < 0 || y < 0 || x >= N || y >= N || this.m[y * N + x] !== 0; },
+  connected() { const N = this.N, m = this.m, seen = new Uint8Array(N * N), q = [(N - 4) * N + (N >> 1)]; seen[q[0]] = 1; const goal = 3 * N + (N >> 1); while (q.length) { const c = q.pop(); if (c === goal) return true; for (const d of [1, -1, N, -N]) { const n = c + d; if (!seen[n] && (m[n] === 1 || !BF_SOLID[m[n]])) { seen[n] = 1; q.push(n); } } } return false; },
+  solid(x, y) { const N = this.N; x |= 0; y |= 0; return x < 0 || y < 0 || x >= N || y >= N || BF_SOLID[this.m[y * N + x]] === 1; },
   spawn(k) {
     const N = this.N; for (let i = 0; i < 60; i++) {
       let x = N * 0.12 + Math.random() * N * 0.76, y = N - 2.5 - Math.random() * 5.5; if (k.team) { x = N - x; y = N - y; }
       if (this.solid(x, y) || this.tanks.some(o => o !== k && o.alive && Math.abs(o.x - x) + Math.abs(o.y - y) < 1.6)) continue;
       k.x = x; k.y = y; break;
     }
-    k.ha = k.ta = k.team ? Math.PI / 2 : -Math.PI / 2; k.hp = k.max; k.alive = true; k.cd = 0.5; k.shield = 2; k.respawn = 0; if (k.ai) { k.ai.px = k.x; k.ai.py = k.y; k.ai.pt = 0; k.ai.stuckT = 0; }
+    k.ha = k.ta = k.team ? Math.PI / 2 : -Math.PI / 2; k.hp = k.max; k.alive = true; k.v = 0; k.heal = 0; k.hid = false; k.cd = 0.5; k.shield = 2; k.respawn = 0; if (k.ai) { k.ai.px = k.x; k.ai.py = k.y; k.ai.pt = 0; k.ai.stuckT = 0; }
   },
 
   // ---------- 逻辑：每秒 60 步 ----------
   step(dt) {
     this.time += dt; if (this.startT > 0) { this.startT -= dt; return; }
     this.fieldT -= dt; if (this.fieldT <= 0) { this.fieldT = 0.4; this.bfs(0); this.bfs(1); }
-    this.seenT -= dt; if (this.seenT <= 0) { this.seenT = 0.25; for (const e of this.tanks) if (e.team === 1) e.seen = e.alive && this.tanks.some(a => a.team === 0 && a.alive && Math.abs(a.x - e.x) + Math.abs(a.y - e.y) < 20 && this.los(a.x, a.y, e.x, e.y)); }
+    this.seenT -= dt; if (this.seenT <= 0) { this.seenT = 0.25; for (const e of this.tanks) if (e.team === 1) e.seen = e.alive && this.tanks.some(a => a.team === 0 && a.alive && Math.abs(a.x - e.x) + Math.abs(a.y - e.y) < (e.hid ? 4.5 : 20) && this.los(a.x, a.y, e.x, e.y)); }
     for (const k of this.tanks) {
       if (!k.alive) { k.respawn -= dt; if (k.respawn <= 0) this.spawn(k); continue; }
       if (k.cd > 0) k.cd -= dt; if (k.shield > 0) k.shield -= dt; if (k.hitT > 0) k.hitT -= dt;
@@ -3700,7 +3707,10 @@ const BF = {
         fire = !!(K.Space || K.KeyJ || this.fireHeld || this.mouseFire);
       } else { const r = this.think(k, dt); thr = r[0]; turn = r[1]; fire = r[2]; }
       k.ha += clamp(turn, -1, 1) * 2.3 * dt; k.thr = thr;
-      const sp = clamp(thr, -0.6, 1) * 3.4 * dt; if (sp) this.move(k, Math.cos(k.ha) * sp, Math.sin(k.ha) * sp);
+      // 地形：泥地慢、公路快、冰面打滑（松手还会滑一段）、草丛里隐身、维修站回血
+      const ter = this.m[(k.y | 0) * this.N + (k.x | 0)], want = clamp(thr, -0.6, 1) * 3.4 * (ter === 7 ? 0.55 : ter === 8 ? 1.35 : 1), rate = (ter === 5 ? 2.4 : 40) * dt;
+      k.v += clamp(want - k.v, -rate, rate); k.hid = ter === 4; if (ter === 9 && k.hp < k.max) { k.heal += dt; if (k.heal > 1.1) { k.heal = 0; k.hp++; if (k.human) Game.S.play('pickup'); } } else k.heal = 0;
+      if (k.v) { const ox = k.x, oy = k.y, sp = k.v * dt; this.move(k, Math.cos(k.ha) * sp, Math.sin(k.ha) * sp); if (ter === 5 && k.x === ox && k.y === oy) k.v = 0; }
       if (fire && k.cd <= 0) { k.cd = 0.75; const c = Math.cos(k.ta), s = Math.sin(k.ta); this.bullets.push({ x: k.x + c * 0.55, y: k.y + s * 0.55, dx: c * 17, dy: s * 17, team: k.team, own: k, life: 2.6 }); if (k.human) { this.kick = 1; Game.S.play('shot'); } else if (this.near(k, 14)) Game.S.play('shotE'); }
     }
     // 坦克之间互相顶开
@@ -3711,7 +3721,7 @@ const BF = {
       const b = this.bullets[i]; let dead = false; b.life -= dt; if (b.life <= 0) dead = true;
       for (let s = 0; s < 3 && !dead; s++) {
         b.x += b.dx * dt / 3; b.y += b.dy * dt / 3; const cx = b.x | 0, cy = b.y | 0, c = cx < 0 || cy < 0 || cx >= N || cy >= N ? 2 : m[cy * N + cx];
-        if (c === 2) { dead = true; this.boom(b.x - b.dx * 0.01, b.y - b.dy * 0.01, 0.5, 0); if (this.near(b, 12)) Game.S.play('spark'); }
+        if (c === 2 || c === 6) { dead = true; this.boom(b.x - b.dx * 0.01, b.y - b.dy * 0.01, 0.5, 0); if (this.near(b, 12)) Game.S.play('spark'); }
         else if (c === 1) { dead = true; const idx = cy * N + cx; if (--this.bhp[idx] <= 0) { m[idx] = 0; this.mapDirty = true; this.boom(cx + 0.5, cy + 0.5, 0.5, 1); } else this.boom(b.x, b.y, 0.5, 0); if (this.near(b, 14)) Game.S.play('brick'); }
         else for (const k of T) if (k.alive && k.team !== b.team && (k.x - b.x) * (k.x - b.x) + (k.y - b.y) * (k.y - b.y) < 0.2) { dead = true; this.hit(k, b); break; }
       }
@@ -3738,22 +3748,22 @@ const BF = {
     this.dialog(won ? TXT.res.win : TXT.res.lose, fmt(TXT.bf.result, this.score[0], this.score[1], p.kills, p.deaths, coins), [[TXT.retry, () => this.start(), 1], [TXT.toMenu || TXT.quit, () => this.stop()]]);
   },
   // 两点之间有没有墙挡着（水不挡视线）
-  los(x0, y0, x1, y1) { const dx = x1 - x0, dy = y1 - y0, n = Math.ceil(Math.sqrt(dx * dx + dy * dy) / 0.3), N = this.N, m = this.m; for (let i = 1; i < n; i++) { const c = m[((y0 + dy * i / n) | 0) * N + ((x0 + dx * i / n) | 0)]; if (c === 1 || c === 2) return false; } return true; },
+  los(x0, y0, x1, y1) { const dx = x1 - x0, dy = y1 - y0, n = Math.ceil(Math.sqrt(dx * dx + dy * dy) / 0.3), N = this.N, m = this.m; for (let i = 1; i < n; i++) { const c = m[((y0 + dy * i / n) | 0) * N + ((x0 + dx * i / n) | 0)]; if (BF_BLOCK[c]) return false; } return true; },
   // 路线图：从每个敌人所在的格子往外一圈圈标距离，砖墙算能走（走到跟前会打掉）
   bfs(team) {
     const N = this.N, m = this.m, f = this.field[team], q = this.queue; f.fill(32767); let a = 0, b = 0;
     for (const k of this.tanks) if (k.alive && k.team !== team) { const c = (k.y | 0) * N + (k.x | 0); if (f[c] === 32767) { f[c] = 0; q[b++] = c; } }
-    while (a < b) { const c = q[a++], d = f[c] + 1; for (let i = 0; i < 4; i++) { const n = c + (i === 0 ? 1 : i === 1 ? -1 : i === 2 ? N : -N); if (f[n] === 32767 && m[n] < 2) { f[n] = d + (m[n] === 1 ? 3 : 0); q[b++] = n; } } }
+    while (a < b) { const c = q[a++], d = f[c] + 1; for (let i = 0; i < 4; i++) { const n = c + (i === 0 ? 1 : i === 1 ? -1 : i === 2 ? N : -N); if (f[n] === 32767 && (m[n] === 1 || !BF_SOLID[m[n]])) { f[n] = d + (m[n] === 1 ? 3 : 0); q[b++] = n; } } }
   },
   // ---------- AI ----------
   think(k, dt) {
     const A = k.ai, N = this.N, m = this.m, L = k.lvl; A.t -= dt;
     if (A.t <= 0) {
       A.t = 0.34 - L * 0.03 + Math.random() * 0.08; let best = null, bd = 1e9, bl = false;
-      for (const e of this.tanks) { if (!e.alive || e.team === k.team) continue; const d = Math.abs(e.x - k.x) + Math.abs(e.y - k.y); if (d > 26) continue; const l = d < 22 && this.los(k.x, k.y, e.x, e.y), sc = d - (l ? 12 : 0); if (sc < bd) { bd = sc; best = e; bl = l; } }
+      for (const e of this.tanks) { if (!e.alive || e.team === k.team) continue; const d = Math.abs(e.x - k.x) + Math.abs(e.y - k.y); if (d > 26 || (e.hid && d > 4.5)) continue;   /* 躲在草丛里的敌人，走到跟前才发现 */ const l = d < 22 && this.los(k.x, k.y, e.x, e.y), sc = d - (l ? 12 : 0); if (sc < bd) { bd = sc; best = e; bl = l; } }
       if (best !== A.tg || !bl) A.seeT = 0; A.tg = best; A.los = bl; A.err = (Math.random() - 0.5) * (6 - L) * 0.07;
       const f = this.field[k.team], cx = k.x | 0, cy = k.y | 0; let bv = f[cy * N + cx], bx = cx, by = cy;
-      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { if (!i && !j) continue; const x = cx + i, y = cy + j, c = y * N + x; if (m[c] >= 2) continue; if (i && j && (m[cy * N + x] !== 0 || m[y * N + cx] !== 0 || m[c] !== 0)) continue; const v = f[c] + (i && j ? 0.4 : 0); if (v < bv) { bv = v; bx = x; by = y; } }
+      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { if (!i && !j) continue; const x = cx + i, y = cy + j, c = y * N + x; if (m[c] !== 1 && BF_SOLID[m[c]]) continue; if (i && j && (BF_SOLID[m[cy * N + x]] || BF_SOLID[m[y * N + cx]] || BF_SOLID[m[c]])) continue; const v = f[c] + (i && j ? 0.4 : 0); if (v < bv) { bv = v; bx = x; by = y; } }
       A.gx = bx + 0.5; A.gy = by + 0.5; A.brick = m[by * N + bx] === 1;
       A.pt += 1; if (A.pt >= 3) { A.pt = 0; if (Math.abs(k.thr) > 0.4 && Math.abs(k.x - A.px) + Math.abs(k.y - A.py) < 0.25) { A.stuckT = 0.6 + Math.random() * 0.4; A.sdir = Math.random() < 0.5 ? 1 : -1; } A.px = k.x; A.py = k.y; }
     }
@@ -3777,11 +3787,13 @@ const BF = {
     this.pauseEl = h('button', { id: 'bfPause', class: 'hb', 'aria-label': TXT.pauseT, onclick: () => this.setPaused(!this.paused) }, '‖');
     el.append(this.cv, this.mini, this.hudEl, this.msg, this.stickEl, this.fireEl, this.pauseEl, h('div', { id: 'bfAim' }), this.dlg); document.getElementById('app').append(el);
     // 贴图：16×16，直接存成像素
-    const px = (r, g, b) => 0xff000000 | (b << 16) | (g << 8) | r, T = this.tex = [null, new Uint32Array(256), new Uint32Array(256), null, new Uint32Array(256)];
+    const px = (r, g, b) => 0xff000000 | (b << 16) | (g << 8) | r, T = this.tex = []; for (let i = 0; i < 12; i++) T.push(new Uint32Array(256));
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
       const row = y >> 2, mort = (y & 3) === 3 || ((x + (row & 1) * 4) & 7) === 7, n = ((x * 7 + y * 13) % 5) * 4;
-      T[1][y * 16 + x] = mort ? px(74, 44, 34) : px(172 + n, 82 + n, 46 + (n >> 1)); T[4][y * 16 + x] = mort || ((x * 5 + y * 3) % 7 === 0) ? px(48, 30, 24) : px(128 + n, 62 + n, 38);
+      T[1][y * 16 + x] = mort ? px(74, 44, 34) : px(172 + n, 82 + n, 46 + (n >> 1)); T[10][y * 16 + x] = mort || ((x * 5 + y * 3) % 7 === 0) ? px(48, 30, 24) : px(128 + n, 62 + n, 38);
       const edge = x === 0 || y === 0 || x === 15 || y === 15, riv = (x === 3 || x === 12) && (y === 3 || y === 12); T[2][y * 16 + x] = edge ? px(70, 76, 82) : riv ? px(210, 214, 218) : px(140 + n, 148 + n, 154 + n);
+      const win = (x & 7) >= 2 && (x & 7) <= 5 && (y & 7) >= 2 && (y & 7) <= 5; T[6][y * 16 + x] = win ? ((x >> 3) + (y >> 3)) & 1 ? px(250, 226, 150) : px(54, 70, 92) : px(118 + n, 112 + n, 104 + n);      // 高楼：水泥墙 + 窗
+      const leaf = ((x * 11 + y * 7 + ((x * y) % 5)) % 9) < (y < 4 ? 3 : 6); T[11][y * 16 + x] = leaf ? px(40 + n * 2, 104 + n * 3 - y, 38 + n) : 0;      // 草丛：有空隙，能透过去看
     }
     // 操作
     addEventListener('keydown', e => { if (!this.on) return; if (e.code === 'Escape' || e.code === 'KeyP') { this.setPaused(!this.paused); e.preventDefault(); return; } this.keys[e.code] = true; if (/^(Arrow|Space)/.test(e.code)) e.preventDefault(); });
@@ -3807,8 +3819,9 @@ const BF = {
     addEventListener('resize', () => { if (this.on) this.resize(); });
   },
   resize() {
-    const r = this.el.getBoundingClientRect(), cw = Math.max(200, r.width), ch = Math.max(150, r.height), W = this.W = cw < 700 ? 360 : 560, H = this.H = clamp(Math.round(W * ch / cw / 2) * 2, 140, 480);
-    this.cv.width = W; this.cv.height = H; this.img = this.g.createImageData(W, H); this.buf = new Uint32Array(this.img.data.buffer); this.zbuf = new Float32Array(W); this.g.imageSmoothingEnabled = false;
+    const r = this.el.getBoundingClientRect(), cw = Math.max(200, r.width), ch = Math.max(150, r.height), W = this.W = Math.min(this.opt.q, Math.round(cw * (window.devicePixelRatio || 1) / 2) * 2), H = this.H = clamp(Math.round(W * ch / cw / 2) * 2, 140, 900);
+    this.cv.width = W; this.cv.height = H; this.img = this.g.createImageData(W, H); this.buf = new Uint32Array(this.img.data.buffer); this.zbuf = new Float32Array(W); this.lowz = new Float32Array(W); this.g.imageSmoothingEnabled = false;
+    this.ov = this.ov || document.createElement('canvas'); this.ov.width = W; this.ov.height = H; this.og = this.ov.getContext('2d'); this.img2 = this.og.createImageData(W, H); this.buf2 = new Uint32Array(this.img2.data.buffer);
     this.fireEl.hidden = !UI.isTouch();
   },
   frame(ts) {
@@ -3827,18 +3840,38 @@ const BF = {
         const cx = Math.floor(wx), cy = Math.floor(wy); let r, g, b;
         if (cx < 0 || cy < 0 || cx >= N || cy >= N) { r = 60; g = 64; b = 50; }
         else if (m[cy * N + cx] === 3) { const w = ((wx * 3 + wy * 2 + tm * 1.5) | 0) & 1; r = 38 + w * 10; g = 92 + w * 12; b = 150 + w * 14; }
-        else { const fx = wx - cx, fy = wy - cy, line = fx < 0.05 || fy < 0.05, ch = (cx + cy) & 1, zone = cy > N - 10 ? 1 : cy < 9 ? 2 : 0; r = line ? 66 : 96 - ch * 8 + (zone === 1 ? 14 : 0) + (zone === 2 ? 16 : 0); g = line ? 72 : 102 - ch * 8 + (zone === 1 ? 8 : 0) - (zone === 2 ? 10 : 0); b = line ? 46 : 64 - ch * 6 - (zone ? 8 : 0); }
+        else {
+          const c = m[cy * N + cx], fx = wx - cx, fy = wy - cy, ch = (cx + cy) & 1;
+          if (c === 5) { const sp = ((fx * 7 + fy * 5) | 0) & 1; r = 186 + sp * 16; g = 222 + sp * 10; b = 240; }
+          else if (c === 7) { const sp = ((fx * 5 | 0) + (fy * 5 | 0)) & 1; r = 104 - sp * 12; g = 80 - sp * 10; b = 52 - sp * 8; }
+          else if (c === 8) { const dash = (Math.abs(fx - 0.5) < 0.05 && fy < 0.5 && m[cy * N + cx - 1] === 8 && m[cy * N + cx + 1] !== 8) || (Math.abs(fy - 0.5) < 0.05 && fx < 0.5 && m[(cy - 1) * N + cx] === 8 && m[(cy + 1) * N + cx] !== 8 && m[cy * N + cx - 1] === 8); r = dash ? 226 : 84 + ch * 4; g = dash ? 214 : 84 + ch * 4; b = dash ? 150 : 90 + ch * 4; }
+          else if (c === 9) { const cr = (Math.abs(fx - 0.5) < 0.12 && Math.abs(fy - 0.5) < 0.34) || (Math.abs(fy - 0.5) < 0.12 && Math.abs(fx - 0.5) < 0.34); r = cr ? 250 : 46; g = cr ? 250 : 150; b = cr ? 250 : 92; }
+          else if (c === 4) { r = 52; g = 90 - ch * 6; b = 40; }
+          else { const line = fx < 0.05 || fy < 0.05, zone = cy > N - 10 ? 1 : cy < 9 ? 2 : 0; r = line ? 66 : 96 - ch * 8 + (zone === 1 ? 14 : 0) + (zone === 2 ? 16 : 0); g = line ? 72 : 102 - ch * 8 + (zone === 1 ? 8 : 0) - (zone === 2 ? 10 : 0); b = line ? 46 : 64 - ch * 6 - (zone ? 8 : 0); }
+        }
         buf[o] = 0xff000000 | (((b * ig + 190 * fg) >> 8) << 16) | (((g * ig + 196 * fg) >> 8) << 8) | ((r * ig + 176 * fg) >> 8);
       }
     }
-    // 墙：每一列射出一条线，碰到墙就画一竖条
+    // 墙：每一列射出一条线，碰到墙就画一竖条。矮墙后面如果有高楼，再把露出来的上半截补上；途中穿过的草丛画到另一层
+    const buf2 = this.buf2, low = this.lowz, bd = [0, 0, 0], bs = [0, 0, 0]; let anyLow = false; buf2.fill(0);
     for (let x = 0; x < W; x++) {
       const k = (x - W / 2 + 0.5) / f, rx = ca - sa * k, ry = sa + ca * k; let cx = Math.floor(px0), cy = Math.floor(py0);
-      const ddx = Math.abs(1 / rx), ddy = Math.abs(1 / ry), stx = rx < 0 ? -1 : 1, sty = ry < 0 ? -1 : 1; let sdx = (rx < 0 ? px0 - cx : cx + 1 - px0) * ddx, sdy = (ry < 0 ? py0 - cy : cy + 1 - py0) * ddy, side = 0, hit = 0, d = 60;
-      for (let i = 0; i < 220; i++) { if (sdx < sdy) { sdx += ddx; cx += stx; side = 0; } else { sdy += ddy; cy += sty; side = 1; } if (cx < 0 || cy < 0 || cx >= N || cy >= N) break; const c = m[cy * N + cx]; if (c === 1 || c === 2) { hit = c === 1 && bhp[cy * N + cx] < 2 ? 4 : c; d = side ? sdy - ddy : sdx - ddx; break; } }
-      zb[x] = d; if (!hit) continue; if (d < 0.02) d = 0.02;
-      const top = hz - (1 - camH) * f / d, bot = hz + camH * f / d, hgt = bot - top, wxh = side ? px0 + d * rx : py0 + d * ry, tx = ((wxh - Math.floor(wxh)) * 16) | 0, T = tex[hit], y0 = Math.max(0, Math.ceil(top)), y1 = Math.min(H - 1, Math.floor(bot)), fg = d > 34 ? 256 : (d * 7.5) | 0, ig = (256 - fg) * (side ? 200 : 256) >> 8;
-      for (let y = y0; y <= y1; y++) { const c = T[(((y - top) / hgt * 16) & 15) * 16 + tx], r = c & 255, g = (c >> 8) & 255, b = (c >> 16) & 255; buf[y * W + x] = 0xff000000 | (((b * ig + 190 * fg) >> 8) << 16) | (((g * ig + 196 * fg) >> 8) << 8) | ((r * ig + 176 * fg) >> 8); }
+      const ddx = Math.abs(1 / rx), ddy = Math.abs(1 / ry), stx = rx < 0 ? -1 : 1, sty = ry < 0 ? -1 : 1; let sdx = (rx < 0 ? px0 - cx : cx + 1 - px0) * ddx, sdy = (ry < 0 ? py0 - cy : cy + 1 - py0) * ddy, side = 0, hit = 0, d = 60, nb = 0, i = 0, clipY = H;
+      low[x] = 1e9;
+      for (let pass = 0; pass < 2; pass++) {
+        hit = 0;
+        for (; i < 260; i++) { if (sdx < sdy) { sdx += ddx; cx += stx; side = 0; } else { sdy += ddy; cy += sty; side = 1; } if (cx < 0 || cy < 0 || cx >= N || cy >= N) { i = 999; break; } const c = m[cy * N + cx]; if (c === 4 && pass === 0) { if (nb < 3) { bd[nb] = side ? sdy - ddy : sdx - ddx; bs[nb++] = side; } continue; } if (pass ? c === 6 : BF_BLOCK[c]) { hit = c === 1 && bhp[cy * N + cx] < 2 ? 10 : c; i++; break; } }
+        if (!hit) break; let dd = side ? sdy - ddy : sdx - ddx; if (dd < 0.02) dd = 0.02; if (pass === 0) { d = dd; zb[x] = d; }
+        const wh = hit === 6 ? 2.4 : 1, top = hz - (wh - camH) * f / dd, bot = hz + camH * f / dd, hgt = bot - top, wxh = side ? px0 + dd * rx : py0 + dd * ry, tx = ((wxh - Math.floor(wxh)) * 16) | 0, T = tex[hit], rows = hit === 6 ? 38.4 : 16, y0 = Math.max(0, Math.ceil(top)), y1 = Math.min(clipY - 1, H - 1, Math.floor(bot)), fg = dd > 34 ? 256 : (dd * 7.5) | 0, ig = (256 - fg) * (side ? 200 : 256) >> 8;
+        for (let y = y0; y <= y1; y++) { const c = T[(((y - top) / hgt * rows) & 15) * 16 + tx], r = c & 255, g = (c >> 8) & 255, b = (c >> 16) & 255; buf[y * W + x] = 0xff000000 | (((b * ig + 190 * fg) >> 8) << 16) | (((g * ig + 196 * fg) >> 8) << 8) | ((r * ig + 176 * fg) >> 8); }
+        if (hit === 6) break; clipY = Math.max(0, Math.ceil(top));
+      }
+      if (i >= 999 && d === 60) zb[x] = 60;
+      for (let j = nb - 1; j >= 0; j--) {
+        const dd = Math.max(0.05, bd[j]); if (dd >= d) continue; if (dd < low[x]) low[x] = dd; anyLow = true;
+        const top = hz - (0.85 - camH) * f / dd, bot = hz + camH * f / dd, hgt = bot - top, wxh = bs[j] ? px0 + dd * rx : py0 + dd * ry, tx = ((wxh - Math.floor(wxh)) * 16) | 0, T = tex[11], y0 = Math.max(0, Math.ceil(top)), y1 = Math.min(H - 1, Math.floor(bot)), fg = dd > 34 ? 256 : (dd * 7.5) | 0, ig = (256 - fg) * (bs[j] ? 215 : 256) >> 8;
+        for (let y = y0; y <= y1; y++) { const c = T[(((y - top) / hgt * 16) & 15) * 16 + tx]; if (!c) continue; const r = c & 255, g = (c >> 8) & 255, b = (c >> 16) & 255; buf2[y * W + x] = 0xff000000 | (((b * ig + 190 * fg) >> 8) << 16) | (((g * ig + 196 * fg) >> 8) << 8) | ((r * ig + 176 * fg) >> 8); }
+      }
     }
     const g = this.g; g.putImageData(this.img, 0, 0);
     // 坦克、炮弹、爆炸：先算出各自离镜头多远，由远到近画；被墙挡住的那几列不画
@@ -3848,11 +3881,14 @@ const BF = {
     for (const b of this.bullets) { const q = proj(b.x, b.y, 0.5); if (q && q[2] < 46) list.push([q[2], 1, b, q]); }
     for (const e of this.fx) { const q = proj(e.x, e.y, e.z); if (q && q[2] < 46) list.push([q[2], 2, e, q]); }
     list.sort((u, v) => v[0] - u[0]);
-    for (const it of list) {
+    const one = it => {
       if (it[1] === 0) this.drawTank(g, it[2], it[0], proj, f, W, H);
-      else if (it[1] === 1) { const q = it[3], x = q[0] | 0; if (x < 0 || x >= W || zb[x] < q[2]) continue; const s = Math.max(1.5, f * 0.07 / q[2]); g.fillStyle = it[2].team ? '#ffb39c' : '#fff3a6'; g.fillRect(q[0] - s / 2, q[1] - s / 2, s, s); }
-      else { const q = it[3], e = it[2], x = q[0] | 0; if (x < 0 || x >= W || zb[x] < q[2] - 0.6) continue; const t = e.t / e.d, s = f * (e.big === 2 ? 0.9 : e.big ? 0.6 : 0.22) * (0.3 + t * 0.9) / q[2]; g.globalAlpha = 1 - t; g.fillStyle = t < 0.35 ? '#fff6c8' : e.big ? '#f08a2a' : '#ffd070'; g.beginPath(); g.arc(q[0], q[1], s, 0, 6.3); g.fill(); if (e.big) { g.fillStyle = '#4a4038'; g.beginPath(); g.arc(q[0], q[1] - s * t, s * 0.6 * t, 0, 6.3); g.fill(); } g.globalAlpha = 1; }
-    }
+      else if (it[1] === 1) { const q = it[3], x = q[0] | 0; if (x < 0 || x >= W || zb[x] < q[2]) return; const s = Math.max(1.5, f * 0.07 / q[2]); g.fillStyle = it[2].team ? '#ffb39c' : '#fff3a6'; g.fillRect(q[0] - s / 2, q[1] - s / 2, s, s); }
+      else { const q = it[3], e = it[2], x = q[0] | 0; if (x < 0 || x >= W || zb[x] < q[2] - 0.6) return; const t = e.t / e.d, s = f * (e.big === 2 ? 0.9 : e.big ? 0.6 : 0.22) * (0.3 + t * 0.9) / q[2]; g.globalAlpha = 1 - t; g.fillStyle = t < 0.35 ? '#fff6c8' : e.big ? '#f08a2a' : '#ffd070'; g.beginPath(); g.arc(q[0], q[1], s, 0, 6.3); g.fill(); if (e.big) { g.fillStyle = '#4a4038'; g.beginPath(); g.arc(q[0], q[1] - s * t, s * 0.6 * t, 0, 6.3); g.fill(); } g.globalAlpha = 1; }
+    };
+    const colOf = it => { if (it[1] !== 0) return clamp(it[3][0] | 0, 0, W - 1); const t = it[2], dx = t.x - px0, dy = t.y - py0; return clamp((W / 2 + (-dx * sa + dy * ca) / it[0] * f) | 0, 0, W - 1); };
+    if (anyLow) { for (const it of list) { it[4] = low[colOf(it)] < it[0]; if (it[4]) one(it); } this.og.putImageData(this.img2, 0, 0); g.drawImage(this.ov, 0, 0); for (const it of list) if (!it[4]) one(it); } else for (const it of list) one(it);
+    if (m[(py0 | 0) * N + (px0 | 0)] === 4) { g.fillStyle = 'rgba(40,96,30,.28)'; g.fillRect(0, 0, W, H); }
     // 自己的炮管
     const kx = this.kick * 4, bw = W * 0.028; g.fillStyle = '#2c2f24'; g.beginPath(); g.moveTo(W / 2 - bw * 2.4, H); g.lineTo(W / 2 - bw * 0.5, H * 0.74 + kx); g.lineTo(W / 2 + bw * 0.5, H * 0.74 + kx); g.lineTo(W / 2 + bw * 2.4, H); g.fill();
     g.fillStyle = '#4c5136'; g.beginPath(); g.moveTo(W / 2 - bw * 1.5, H); g.lineTo(W / 2 - bw * 0.3, H * 0.74 + kx); g.lineTo(W / 2 + bw * 0.1, H * 0.74 + kx); g.lineTo(W / 2 + bw * 0.4, H); g.fill();
@@ -3879,7 +3915,7 @@ const BF = {
   },
   drawMini() {
     const N = this.N, g = this.mg, S = 132, p = this.me;
-    if (this.mapDirty || !this.mapCv || this.mapCv.width !== N) { this.mapDirty = false; const c = this.mapCv = this.mapCv && this.mapCv.width === N ? this.mapCv : Object.assign(document.createElement('canvas'), { width: N, height: N }), cg = c.getContext('2d'), im = cg.createImageData(N, N), b = new Uint32Array(im.data.buffer); const col = [0xc0283024, 0xff3a62b4, 0xffa8a09a, 0xffa86a30]; for (let i = 0; i < N * N; i++) b[i] = col[this.m[i]]; cg.putImageData(im, 0, 0); }
+    if (this.mapDirty || !this.mapCv || this.mapCv.width !== N) { this.mapDirty = false; const c = this.mapCv = this.mapCv && this.mapCv.width === N ? this.mapCv : Object.assign(document.createElement('canvas'), { width: N, height: N }), cg = c.getContext('2d'), im = cg.createImageData(N, N), b = new Uint32Array(im.data.buffer); const col = [0xc0283024, 0xff3a62b4, 0xffa8a09a, 0xffa86a30, 0xff2c6a34, 0xfff0dcc0, 0xff605850, 0xff34506a, 0xff5c5854, 0xff60d060]; for (let i = 0; i < N * N; i++) b[i] = col[this.m[i]]; cg.putImageData(im, 0, 0); }
     g.imageSmoothingEnabled = false; g.clearRect(0, 0, S, S); g.drawImage(this.mapCv, 0, 0, S, S); const k = S / N;
     for (const t of this.tanks) { if (!t.alive || (t.team === 1 && !t.seen) || t === p) continue; g.fillStyle = TEAM_COLORS[t.team][0]; g.fillRect(t.x * k - 1.5, t.y * k - 1.5, 3, 3); }
     // 自己：白点、视野扇形、车身方向（短线）
@@ -3902,6 +3938,7 @@ Object.assign(UI, {
       this.row(T.size, this.seg([8, 12, 16].map(n => [n, n + ' v ' + n]), o.n, v => { o.n = v; })),
       this.row(T.map, this.seg([[48, T.maps[0]], [64, T.maps[1]], [96, T.maps[2]]], o.size, v => { o.size = v; }, 'wrap')),
       this.row(TXT.net.aiLvl, this.lvlSeg(o.ai, v => { o.ai = v; })),
+      this.row(T.q, this.seg([[480, T.qs[0]], [720, T.qs[1]], [1080, T.qs[2]]], o.q, v => { o.q = v; }), T.qNote),
       h('h3', { class: 'sec', text: T.how }), h('ul', { class: 'bul' }, T.howList.map(t => h('li', { text: t })))],
       h('button', { class: 'primary', onclick: () => BF.start() }, T.go), () => this.show('main'));
   },
