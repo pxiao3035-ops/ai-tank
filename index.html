@@ -2605,6 +2605,7 @@ if (typeof window !== 'undefined' && window.AITANK_SERVER) {
   TXT.net.none = ['连不上联机服务器。', '检查网络后刷新页面再试', '如果一直连不上，可能是服务器没有启动'];
   TXT.net.share = '把房间号告诉朋友：打开这个网址，进“联机”，输入房间号。也可以直接把现在的网址发过去。';
 }
+TXT.set.rich = '无限金币'; TXT.set.richNote = '打开后车库里的东西随便买；关掉后金币回到最多 5000';
 
 /* =====================================================================
  * 模块 11 · 存档、对局配置、主循环
@@ -2614,9 +2615,10 @@ if (typeof window !== 'undefined' && window.AITANK_SERVER) {
 const SAVE_KEY = 'aitank.save.v1';
 const Save = {
   data: null,
-  def() { return { coins: 0, earned: 0, tanks: ['medium'], skins: ['gold'], trails: ['none'], talents: [], talentOff: [], pure: false, sel: { tank: 'medium', skin: 'gold', trail: 'none' }, stars: {}, ach: {}, kills: 0, intact: 0, bosses: [], daily: {}, endless: [], dyn: { fail: 0, clean: 0 }, tut: false, maps: [], replay: null, nick: '', set: { sfx: 0.7, music: 0.45, style: 'pixel', shake: true, flash: true, cb: false, neg: true, dyn: true, diff: 'normal', input: 'auto', binds: null, custom: { lives: 3, enemies: 20, eb: 1, baseHp: 1, drop: 4, aiLo: 2, aiHi: 3 } } }; },
+  def() { return { coins: 0, earned: 0, tanks: ['medium'], skins: ['gold'], trails: ['none'], talents: [], talentOff: [], pure: false, sel: { tank: 'medium', skin: 'gold', trail: 'none' }, stars: {}, ach: {}, kills: 0, intact: 0, bosses: [], daily: {}, endless: [], dyn: { fail: 0, clean: 0 }, tut: false, maps: [], replay: null, nick: '', set: { sfx: 0.7, music: 0.45, style: 'pixel', shake: true, flash: true, rich: false, cb: false, neg: true, dyn: true, diff: 'normal', input: 'auto', binds: null, custom: { lives: 3, enemies: 20, eb: 1, baseHp: 1, drop: 4, aiLo: 2, aiHi: 3 } } }; },
   load() { const d = this.def(); try { const s = localStorage.getItem(SAVE_KEY); if (s) { const o = JSON.parse(s); for (const k in o) { if (k === 'set') { Object.assign(d.set, o.set); d.set.custom = Object.assign(this.def().set.custom, o.set.custom || {}); } else if (k in d) d[k] = o[k]; } } } catch (e) { } this.data = d; },
-  store() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) { } },
+  store() { if (this.data.set.rich) this.data.coins = 9999999;   /* 无限金币：每次存档都补满 */
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) { } },
 };
 function talentsOn() { const S = Save.data, t = {}; if (!S.pure) for (const k of S.talents) if (!S.talentOff.includes(k)) t[k] = 1; return t; }
 function diffOf(key) { if (key === 'custom') { const c = Save.data.set.custom; return { lives: c.lives, enemies: c.enemies, eb: c.eb, baseHp: c.baseHp, drop: c.drop, ai: [Math.min(c.aiLo, c.aiHi), Math.max(c.aiLo, c.aiHi)] }; } return Object.assign({}, DIFFICULTY[key] || DIFFICULTY.normal); }
@@ -2926,7 +2928,7 @@ const UI = {
   iconURL(k) { return this.icons['i' + k + Save.data.set.style] || (this.icons['i' + k + Save.data.set.style] = Game.R.iconURL(k)); },
   // ---------- 小控件 ----------
   frame(title, body, foot, back) {
-    return h('div', { class: 'panel' }, h('header', { class: 'bar' }, h('button', { class: 'back', onclick: back || (() => this.show('main')) }, '‹ ' + TXT.back), h('h2', { text: title }), h('span', { class: 'coin mono', text: '◆ ' + Save.data.coins })), h('div', { class: 'body' }, body), foot ? h('footer', { class: 'act' }, foot) : null);
+    return h('div', { class: 'panel' }, h('header', { class: 'bar' }, h('button', { class: 'back', onclick: back || (() => this.show('main')) }, '‹ ' + TXT.back), h('h2', { text: title }), h('span', { class: 'coin mono', text: '◆ ' + (Save.data.set.rich ? '∞' : Save.data.coins) })), h('div', { class: 'body' }, body), foot ? h('footer', { class: 'act' }, foot) : null);
   },
   row(label, ctl, note) { return h('div', { class: 'row' }, h('div', { class: 'lab' }, label, note ? h('small', { text: note }) : null), h('div', { class: 'ctl' }, ctl)); },
   seg(opts, cur, cb, cls) { const box = h('div', { class: 'seg ' + (cls || ''), role: 'group' }); for (const [v, label, dis] of opts) box.append(h('button', { 'aria-pressed': String(v === cur), disabled: dis, onclick: e => { for (const b of box.children) b.setAttribute('aria-pressed', 'false'); e.currentTarget.setAttribute('aria-pressed', 'true'); cb(v); } }, label)); return box; },
@@ -3038,6 +3040,7 @@ const UI = {
       this.row(TXT.set.sfx, this.range('setSfx', 0, 1, 0.05, set.sfx, v => { set.sfx = v; sv(); G.S.play('shot'); }, v => Math.round(v * 100))),
       this.row(TXT.set.music, this.range('setMusic', 0, 1, 0.05, set.music, v => { set.music = v; sv(); }, v => Math.round(v * 100))),
       this.row(TXT.set.style, this.seg([['pixel', TXT.set.pixel], ['neon', TXT.set.neon]], set.style, v => { set.style = v; this.icons = {}; sv(); this.layout(); })),
+      this.row(TXT.set.rich, this.toggle('setRich', set.rich, v => { set.rich = v; if (!v) Save.data.coins = Math.min(Save.data.coins, 5000); sv(); this.refresh(); }), TXT.set.richNote),
       this.row(TXT.set.shake, this.toggle('setShake', set.shake, v => { set.shake = v; sv(); })), this.row(TXT.set.flash, this.toggle('setFlash', set.flash, v => { set.flash = v; sv(); })),
       this.row(TXT.set.cb, this.toggle('setCb', set.cb, v => { set.cb = v; sv(); })), this.row(TXT.set.neg, this.toggle('setNeg', set.neg, v => { set.neg = v; sv(); }), '红框道具：反向、减速、哑火'),
       this.row(TXT.set.dyn, this.toggle('setDyn', set.dyn, v => { set.dyn = v; sv(); }), '调整幅度会显示在关卡开始画面上'),
