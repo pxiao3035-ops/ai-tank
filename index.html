@@ -206,6 +206,20 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .dot { width: 10px; height: 10px; } .dot.t0 { background: var(--gold); } .dot.t1 { background: var(--red); } #app[data-cb="1"] .dot.t1 { background: var(--blue); }
 .primary.on { background: var(--green); box-shadow: 0 4px 0 #1b6a2c; }
 #sig { position: absolute; right: 6px; top: 6px; display: flex; flex-direction: column; gap: 6px; pointer-events: auto; opacity: .86; } .hb.sg { width: 34px; height: 34px; padding: 0; text-align: center; font: 15px var(--f-display); }
+/* 大战场 3D */
+#bf { position: absolute; inset: 0; z-index: 20; background: #000; touch-action: none; overflow: hidden; cursor: crosshair; }
+#bfCv { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+#bfMini { position: absolute; right: max(8px, env(safe-area-inset-right, 0px)); top: calc(8px + env(safe-area-inset-top, 0px)); width: clamp(96px, 20vmin, 150px); height: auto; aspect-ratio: 1; border: 2px solid rgba(255,255,255,.35); background: rgba(0,0,0,.45); image-rendering: pixelated; pointer-events: none; }
+#bfPause { position: absolute; left: max(8px, env(safe-area-inset-left, 0px)); top: calc(8px + env(safe-area-inset-top, 0px)); z-index: 2; }
+#bfHud { position: absolute; left: max(54px, calc(46px + env(safe-area-inset-left, 0px))); top: calc(8px + env(safe-area-inset-top, 0px)); color: #fff; font: 14px var(--f-mono); text-shadow: 0 1px 0 #000, 0 0 4px #000; pointer-events: none; display: grid; gap: 4px; }
+#bfHud .sc { font: 22px var(--f-display); display: flex; gap: 6px; align-items: baseline; } #bfHud .sc small { font: 12px var(--f-mono); opacity: .8; } #bfHud .t0 { color: var(--gold); } #bfHud .t1 { color: #ff8a76; }
+#bfHud .hp { display: flex; gap: 3px; } #bfHud .hp i { width: 14px; height: 8px; background: rgba(255,255,255,.2); border: 1px solid rgba(0,0,0,.6); } #bfHud .hp i.on { background: var(--green); }
+#bfHud .feed p { margin: 0; font-size: 12px; opacity: .9; } #bfHud .kd { font-size: 12px; opacity: .85; }
+#bfMsg { position: absolute; left: 0; right: 0; top: 24%; text-align: center; color: #fff; font: 16px var(--f-body); text-shadow: 0 1px 0 #000, 0 0 6px #000; pointer-events: none; padding: 0 16px; }
+#bfAim { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; pointer-events: none; background: linear-gradient(#fff, #fff) center / 2px 100% no-repeat, linear-gradient(#fff, #fff) center / 100% 2px no-repeat; opacity: .75; mix-blend-mode: difference; }
+#bfStick { position: absolute; width: 104px; height: 104px; margin: -52px 0 0 -52px; border: 2px solid rgba(255,255,255,.45); border-radius: 50%; background: rgba(0,0,0,.25); pointer-events: none; } #bfStick i { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(255,255,255,.6); }
+#bfFire { position: absolute; right: max(22px, calc(14px + env(safe-area-inset-right, 0px))); bottom: calc(26px + env(safe-area-inset-bottom, 0px)); width: 92px; height: 92px; border-radius: 50%; background: rgba(226,80,58,.78); color: #fff; border: 3px solid rgba(255,255,255,.6); font: 18px var(--f-display); touch-action: none; padding: 0; display: grid; place-items: center; } #bfFire[hidden] { display: none; }
+#bfDlg { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.6); z-index: 5; cursor: default; } #bfDlg[hidden] { display: none; }
 /* 对话框 */
 .box { width: min(460px, 100%); max-height: 100%; overflow-y: auto; background: var(--panel); border: 2px solid var(--line); border-top: 6px solid var(--gold); padding: 18px; display: grid; gap: 10px; }
 .box h2 { margin: 0; font: 400 34px/1 var(--f-display); } .box > button:not(.primary), .acts > button:not(.primary) { padding: 9px 12px; border: 2px solid var(--line); background: var(--panel2); text-align: center; } .box > button:hover, .acts > button:hover { border-color: var(--ink); }
@@ -2606,6 +2620,15 @@ if (typeof window !== 'undefined' && window.AITANK_SERVER) {
   TXT.net.share = '把房间号告诉朋友：打开这个网址，进“联机”，输入房间号。也可以直接把现在的网址发过去。';
 }
 TXT.set.rich = '无限金币'; TXT.set.richNote = '打开后车库里的东西随便买；关掉后金币回到最多 5000';
+// 大战场（第一人称 3D）
+TXT.menu.bf = ['大战场 3D', '超大地图 · 第一人称 · 车身炮塔分开控制'];
+TXT.bf = {
+  intro: '从炮塔里往外看的 3D 坦克战。超大地图上两队混战，被击毁 3 秒后重生，先拿到目标击杀数的一队获胜。',
+  size: '人数', map: '地图', maps: ['大 48×48', '超大 64×64', '巨型 96×96'], go: '出击', fire: '开火',
+  how: '怎么操作', howList: ['手机 / 平板：左手摇杆开车（上下进退、左右转车身），右半屏滑动转炮塔，右下角按住开火', '键盘：W S 进退，A D 转车身，← → 或 Q E 转炮塔，空格或 J 开火', '鼠标：点一下画面后，移动鼠标转炮塔，按住左键开火；Esc 暂停', '右上角小地图：白点是你，黄线是车身朝向，扇形是炮塔视野；红点是被队友发现的敌人', '砖墙两炮打穿，钢墙打不动，水过不去但炮弹能飞过'],
+  ready: '准备… {0}', dead: '被击毁，{0} 秒后重生', helpTouch: '左手开车 · 右手滑动转炮塔 · 按住开火', helpKey: 'W A S D 开车 · ← → 或鼠标转炮塔 · 空格开火',
+  kd: '击毁 {0} · 阵亡 {1}', you: '你', team: ['黄队', '红队'], result: '黄队 {0} : {1} 红队 · 你击毁 {2}、阵亡 {3} · 获得 ◆ {4}',
+};
 
 /* =====================================================================
  * 模块 11 · 存档、对局配置、主循环
@@ -2792,6 +2815,7 @@ const Game = {
   },
   frame(ts) {
     requestAnimationFrame(t => this.frame(t));
+    if (BF.on) return BF.frame(ts);      /* 大战场模式有自己的循环和画面 */
     const dt = Math.min(100, ts - this.last || 16); this.last = ts;
     Input.pollPads();
     const w = this.w; if (!w) return;
@@ -2949,13 +2973,13 @@ const UI = {
   mutRow(o) { return this.row(TXT.opt.mut, this.multi(MUTATORS.map(k => [k, TXT.mut[k][0], TXT.mut[k][1]]), o.mut, () => { })); },
   // ---------- 主菜单 ----------
   mainScreen() {
-    const S = Save.data, list = ['campaign', 'endless', 'versus', 'daily', 'local', 'online', 'training', 'spectate', 'editor', 'garage', 'ach', 'settings'];
+    const S = Save.data, list = ['campaign', 'endless', 'versus', 'daily', 'local', 'online', 'bf', 'training', 'spectate', 'editor', 'garage', 'ach', 'settings'];
     const go = k => { if (k === 'tutorial') return Game.startKind('tutorial'); this.show(k); };
     const mk = (k, hot) => h('button', { class: 'mi' + (hot ? ' hot' : ''), onclick: () => go(k) }, h('b', { text: TXT.menu[k][0] }), h('span', { text: k === 'ach' ? fmt(TXT.achT, Object.keys(S.ach).length, ACHS.length) : k === 'daily' ? (S.daily[todayStr()] ? fmt(TXT.daily.done, S.daily[todayStr()]) : TXT.menu.daily[1]) : TXT.menu[k][1] }));
     const logo = h('canvas', { id: 'logo', width: 236, height: 46, role: 'img', 'aria-label': TXT.title }); setTimeout(() => drawLogo(logo), 0);
     return h('div', { class: 'panel main' }, h('header', { class: 'brand' }, h('h1', null, logo), h('p', { class: 'tag', text: TXT.sub })),
       h('nav', { class: 'menu' }, S.tut ? null : mk('tutorial', true), list.map(k => mk(k)), S.tut ? mk('tutorial') : null),
-      h('footer', { class: 'foot' }, h('span', { class: 'coin mono', text: '◆ ' + S.coins }), h('span', { text: TXT.about })));
+      h('footer', { class: 'foot' }, h('span', { class: 'coin mono', text: '◆ ' + (S.set.rich ? '∞' : S.coins) }), h('span', { text: TXT.about })));
   },
   campaignScreen() {
     const S = Save.data, o = this.o.campaign;
@@ -3601,6 +3625,287 @@ UI.editorScreen = function () {
         h('button', { class: 'sm', onclick: () => { const mm = decodeMap(code.value); if (!mm) { note.textContent = TXT.editor.badCode; return; } E.slot = -1; E.open(code.value.trim()); this.refresh(); this.layout(); } }, TXT.paste)),
       h('h3', { class: 'sec', text: TXT.editor.my }), list));
 };
+
+/* =====================================================================
+ * 模块 15 · 大战场（第一人称 3D）
+ * 一个独立的模式：超大地图、8v8 到 16v16、车身和炮塔分开控制、从炮塔里往外看。
+ * 和其余模式互不影响：自己的地图、物理、AI 和画面都在这个文件里。
+ *   - 世界是一张方格地图（砖墙可打碎、钢墙打不动、水过不去但子弹能过），坦克在上面自由移动和转向。
+ *   - 画面用“光线投射”逐列画墙、逐行画地面，直接写像素；坦克是几个小方盒投影出来的。
+ *   - AI：每队一张“到最近敌人还有多远”的路线图，沿着它走；看见敌人就转炮塔开火，挡路的砖墙就打掉。
+ * 这个模式只有单机，不联机。
+ * ===================================================================== */
+const BF = {
+  on: false, built: false, paused: false, over: false, opt: { n: 8, size: 64, ai: 3 },
+  N: 0, m: null, bhp: null, tanks: [], bullets: [], fx: [], score: [0, 0], target: 0, me: null, time: 0, acc: 0, last: 0, feed: [], fieldT: 0, seenT: 0, startT: 0,
+  keys: {}, stick: { id: null, ox: 0, oy: 0, x: 0, y: 0 }, look: { id: null, lx: 0 }, lookAcc: 0, fireHeld: false, mouseFire: false,
+  W: 0, H: 0, img: null, buf: null, zbuf: null, tex: null, kick: 0, mapCv: null, mapDirty: true,
+
+  // ---------- 开始 / 结束 ----------
+  start() {
+    if (!this.built) this.build();
+    const o = this.opt, N = this.N = o.size; this.m = new Uint8Array(N * N); this.bhp = new Uint8Array(N * N);
+    this.genMap(); this.tanks = []; this.bullets = []; this.fx = []; this.score = [0, 0]; this.target = o.n * 4; this.feed = []; this.time = 0; this.acc = 0; this.last = 0; this.fieldT = 0; this.seenT = 0; this.startT = 3; this.over = false; this.paused = false; this.kick = 0;
+    this.field = [new Int16Array(N * N), new Int16Array(N * N)]; this.queue = new Int32Array(N * N);
+    for (let t = 0; t < 2; t++) for (let i = 0; i < o.n; i++) {
+      const human = t === 0 && i === 0, lvl = clamp(o.ai + (i % 3 === 2 ? 1 : 0) - (i % 4 === 3 ? 1 : 0), 1, 5);
+      const k = { id: this.tanks.length, team: t, human, x: 0, y: 0, ha: 0, ta: 0, hp: 0, max: human ? 5 : 3, cd: 0, alive: false, respawn: 0, shield: 0, kills: 0, deaths: 0, seen: false, hitT: 0, thr: 0, lvl, ai: human ? null : { t: Math.random() * 0.3, tg: null, los: false, gx: 0, gy: 0, brick: false, err: 0, side: Math.random() < 0.5 ? 1 : -1, seeT: 0, stuckT: 0, sdir: 1, px: 0, py: 0, pt: 0 } };
+      this.tanks.push(k); this.spawn(k);
+    }
+    this.me = this.tanks[0]; this.keys = {}; this.stick.id = null; this.stick.x = this.stick.y = 0; this.look.id = null; this.lookAcc = 0; this.fireHeld = this.mouseFire = false;
+    this.mapDirty = true; this.el.hidden = false; this.dlg.hidden = true; this.on = true; this.resize(); this.bfs(0); this.bfs(1);
+    Game.S.init(); Game.S.music('battle'); Game.S.play('start'); this.hud();
+  },
+  stop() { this.on = false; this.el.hidden = true; try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { } Game.S.music('menu'); UI.show('main'); },
+  setPaused(p) { if (this.over || !this.on) return; this.paused = p; if (p) { try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { } this.dialog(TXT.pauseT, '', [[TXT.resume, () => this.setPaused(false), 1], [TXT.restart, () => this.start()], [TXT.quit, () => this.stop()]]); } else this.dlg.hidden = true; },
+  dialog(title, text, acts) { this.dlg.replaceChildren(h('div', { class: 'box' }, h('h2', { text: title }), text ? h('p', { class: 'lead', text }) : null, acts.map(a => h('button', { class: a[2] ? 'primary' : '', onclick: a[1] }, a[0])))); this.dlg.hidden = false; },
+
+  // ---------- 地图：中心对称，双方条件一样 ----------
+  genMap() {
+    const N = this.N, m = this.m, set = (x, y, v) => { if (x < 1 || y < 1 || x > N - 2 || y > N - 2) return; m[y * N + x] = v; m[(N - 1 - y) * N + (N - 1 - x)] = v; };
+    for (let tries = 0; tries < 20; tries++) {
+      m.fill(0); for (let i = 0; i < N; i++) { m[i] = m[(N - 1) * N + i] = m[i * N] = m[i * N + N - 1] = 2; }
+      const walls = Math.round(N * N / 55);
+      for (let k = 0; k < walls; k++) { const x = 2 + (Math.random() * (N - 4)) | 0, y = 2 + (Math.random() * (N / 2)) | 0, len = 2 + (Math.random() * 6) | 0, hz = Math.random() < 0.5, v = Math.random() < 0.2 ? 2 : 1, thick = Math.random() < 0.25 ? 2 : 1; for (let i = 0; i < len; i++) for (let j = 0; j < thick; j++) set(hz ? x + i : x + j, hz ? y + j : y + i, v); }
+      for (let k = 0; k < N / 10; k++) { const x = 4 + (Math.random() * (N - 10)) | 0, y = 10 + (Math.random() * (N / 2 - 12)) | 0, w = 2 + (Math.random() * 4) | 0, hh = 2 + (Math.random() * 3) | 0; for (let i = 0; i < w; i++) for (let j = 0; j < hh; j++) if (Math.random() < 0.85) set(x + i, y + j, 3); }
+      for (let y = N - 9; y <= N - 2; y++) for (let x = 1; x <= N - 2; x++) set(x, y, 0);      // 出生区清空
+      this.bhp.fill(0); for (let i = 0; i < N * N; i++) if (m[i] === 1) this.bhp[i] = 2;
+      if (this.connected()) return;
+    }
+  },
+  connected() { const N = this.N, m = this.m, seen = new Uint8Array(N * N), q = [(N - 4) * N + (N >> 1)]; seen[q[0]] = 1; const goal = 3 * N + (N >> 1); while (q.length) { const c = q.pop(); if (c === goal) return true; for (const d of [1, -1, N, -N]) { const n = c + d; if (!seen[n] && m[n] < 2) { seen[n] = 1; q.push(n); } } } return false; },
+  solid(x, y) { const N = this.N; x |= 0; y |= 0; return x < 0 || y < 0 || x >= N || y >= N || this.m[y * N + x] !== 0; },
+  spawn(k) {
+    const N = this.N; for (let i = 0; i < 60; i++) {
+      let x = N * 0.12 + Math.random() * N * 0.76, y = N - 2.5 - Math.random() * 5.5; if (k.team) { x = N - x; y = N - y; }
+      if (this.solid(x, y) || this.tanks.some(o => o !== k && o.alive && Math.abs(o.x - x) + Math.abs(o.y - y) < 1.6)) continue;
+      k.x = x; k.y = y; break;
+    }
+    k.ha = k.ta = k.team ? Math.PI / 2 : -Math.PI / 2; k.hp = k.max; k.alive = true; k.cd = 0.5; k.shield = 2; k.respawn = 0; if (k.ai) { k.ai.px = k.x; k.ai.py = k.y; k.ai.pt = 0; k.ai.stuckT = 0; }
+  },
+
+  // ---------- 逻辑：每秒 60 步 ----------
+  step(dt) {
+    this.time += dt; if (this.startT > 0) { this.startT -= dt; return; }
+    this.fieldT -= dt; if (this.fieldT <= 0) { this.fieldT = 0.4; this.bfs(0); this.bfs(1); }
+    this.seenT -= dt; if (this.seenT <= 0) { this.seenT = 0.25; for (const e of this.tanks) if (e.team === 1) e.seen = e.alive && this.tanks.some(a => a.team === 0 && a.alive && Math.abs(a.x - e.x) + Math.abs(a.y - e.y) < 20 && this.los(a.x, a.y, e.x, e.y)); }
+    for (const k of this.tanks) {
+      if (!k.alive) { k.respawn -= dt; if (k.respawn <= 0) this.spawn(k); continue; }
+      if (k.cd > 0) k.cd -= dt; if (k.shield > 0) k.shield -= dt; if (k.hitT > 0) k.hitT -= dt;
+      let thr = 0, turn = 0, fire = false;
+      if (k.human) {
+        const K = this.keys, s = this.stick; thr = (K.KeyW ? 1 : 0) - (K.KeyS ? 1 : 0); turn = (K.KeyD ? 1 : 0) - (K.KeyA ? 1 : 0);
+        if (s.id !== null) { if (Math.abs(s.y) > 0.18) thr = -s.y; if (Math.abs(s.x) > 0.22) turn = s.x; }
+        k.ta += ((K.ArrowRight || K.KeyE ? 1 : 0) - (K.ArrowLeft || K.KeyQ ? 1 : 0)) * 2.2 * dt + this.lookAcc; this.lookAcc = 0;
+        fire = !!(K.Space || K.KeyJ || this.fireHeld || this.mouseFire);
+      } else { const r = this.think(k, dt); thr = r[0]; turn = r[1]; fire = r[2]; }
+      k.ha += clamp(turn, -1, 1) * 2.3 * dt; k.thr = thr;
+      const sp = clamp(thr, -0.6, 1) * 3.4 * dt; if (sp) this.move(k, Math.cos(k.ha) * sp, Math.sin(k.ha) * sp);
+      if (fire && k.cd <= 0) { k.cd = 0.75; const c = Math.cos(k.ta), s = Math.sin(k.ta); this.bullets.push({ x: k.x + c * 0.55, y: k.y + s * 0.55, dx: c * 17, dy: s * 17, team: k.team, own: k, life: 2.6 }); if (k.human) { this.kick = 1; Game.S.play('shot'); } else if (this.near(k, 14)) Game.S.play('shotE'); }
+    }
+    // 坦克之间互相顶开
+    const T = this.tanks; for (let i = 0; i < T.length; i++) { const a = T[i]; if (!a.alive) continue; for (let j = i + 1; j < T.length; j++) { const b = T[j]; if (!b.alive) continue; const dx = b.x - a.x, dy = b.y - a.y, d2 = dx * dx + dy * dy; if (d2 < 0.64 && d2 > 1e-6) { const d = Math.sqrt(d2), p = (0.8 - d) / 2 / d; this.move(a, -dx * p, -dy * p); this.move(b, dx * p, dy * p); } } }
+    // 炮弹
+    const N = this.N, m = this.m;
+    for (let i = this.bullets.length - 1; i >= 0; i--) {
+      const b = this.bullets[i]; let dead = false; b.life -= dt; if (b.life <= 0) dead = true;
+      for (let s = 0; s < 3 && !dead; s++) {
+        b.x += b.dx * dt / 3; b.y += b.dy * dt / 3; const cx = b.x | 0, cy = b.y | 0, c = cx < 0 || cy < 0 || cx >= N || cy >= N ? 2 : m[cy * N + cx];
+        if (c === 2) { dead = true; this.boom(b.x - b.dx * 0.01, b.y - b.dy * 0.01, 0.5, 0); if (this.near(b, 12)) Game.S.play('spark'); }
+        else if (c === 1) { dead = true; const idx = cy * N + cx; if (--this.bhp[idx] <= 0) { m[idx] = 0; this.mapDirty = true; this.boom(cx + 0.5, cy + 0.5, 0.5, 1); } else this.boom(b.x, b.y, 0.5, 0); if (this.near(b, 14)) Game.S.play('brick'); }
+        else for (const k of T) if (k.alive && k.team !== b.team && (k.x - b.x) * (k.x - b.x) + (k.y - b.y) * (k.y - b.y) < 0.2) { dead = true; this.hit(k, b); break; }
+      }
+      if (dead) this.bullets.splice(i, 1);
+    }
+    for (let i = this.fx.length - 1; i >= 0; i--) { const f = this.fx[i]; f.t += dt; if (f.t > f.d) this.fx.splice(i, 1); }
+    if (this.kick > 0) this.kick = Math.max(0, this.kick - dt * 5);
+    for (let i = this.feed.length - 1; i >= 0; i--) if (this.time - this.feed[i].t > 5) this.feed.splice(i, 1);
+  },
+  near(o, d) { const p = this.me; return Math.abs(o.x - p.x) + Math.abs(o.y - p.y) < d; },
+  move(k, dx, dy) { const r = 0.34; let nx = k.x + dx; if (!(this.solid(nx - r, k.y - r) || this.solid(nx + r, k.y - r) || this.solid(nx - r, k.y + r) || this.solid(nx + r, k.y + r))) k.x = nx; const ny = k.y + dy; if (!(this.solid(k.x - r, ny - r) || this.solid(k.x + r, ny - r) || this.solid(k.x - r, ny + r) || this.solid(k.x + r, ny + r))) k.y = ny; },
+  boom(x, y, z, big) { this.fx.push({ x, y, z, t: 0, d: big ? 0.5 : 0.22, big }); },
+  hit(k, b) {
+    if (k.shield > 0) { this.boom(b.x, b.y, 0.45, 0); return; }
+    k.hp--; k.hitT = 0.25; this.boom(b.x, b.y, 0.45, 0); if (k.human) { Game.S.play('hit'); if (navigator.vibrate && Save.data.set.haptic !== false) try { navigator.vibrate(30); } catch (e) { } } else if (b.own.human) Game.S.play('ping');
+    if (k.hp > 0) return;
+    k.alive = false; k.respawn = 3; k.deaths++; b.own.kills++; this.score[b.team]++; this.boom(k.x, k.y, 0.4, 2); if (this.near(k, 20)) Game.S.play('boom');
+    this.feed.push({ t: this.time, a: b.own, b: k }); if (this.feed.length > 4) this.feed.shift();
+    if (this.score[b.team] >= this.target) this.finish(b.team);
+  },
+  finish(win) {
+    this.over = true; const p = this.me, won = win === 0, coins = won ? 150 : 40; Save.data.coins += coins; Save.store(); Game.S.music(''); Game.S.play(won ? 'win' : 'lose');
+    try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { }
+    this.dialog(won ? TXT.res.win : TXT.res.lose, fmt(TXT.bf.result, this.score[0], this.score[1], p.kills, p.deaths, coins), [[TXT.retry, () => this.start(), 1], [TXT.toMenu || TXT.quit, () => this.stop()]]);
+  },
+  // 两点之间有没有墙挡着（水不挡视线）
+  los(x0, y0, x1, y1) { const dx = x1 - x0, dy = y1 - y0, n = Math.ceil(Math.sqrt(dx * dx + dy * dy) / 0.3), N = this.N, m = this.m; for (let i = 1; i < n; i++) { const c = m[((y0 + dy * i / n) | 0) * N + ((x0 + dx * i / n) | 0)]; if (c === 1 || c === 2) return false; } return true; },
+  // 路线图：从每个敌人所在的格子往外一圈圈标距离，砖墙算能走（走到跟前会打掉）
+  bfs(team) {
+    const N = this.N, m = this.m, f = this.field[team], q = this.queue; f.fill(32767); let a = 0, b = 0;
+    for (const k of this.tanks) if (k.alive && k.team !== team) { const c = (k.y | 0) * N + (k.x | 0); if (f[c] === 32767) { f[c] = 0; q[b++] = c; } }
+    while (a < b) { const c = q[a++], d = f[c] + 1; for (let i = 0; i < 4; i++) { const n = c + (i === 0 ? 1 : i === 1 ? -1 : i === 2 ? N : -N); if (f[n] === 32767 && m[n] < 2) { f[n] = d + (m[n] === 1 ? 3 : 0); q[b++] = n; } } }
+  },
+  // ---------- AI ----------
+  think(k, dt) {
+    const A = k.ai, N = this.N, m = this.m, L = k.lvl; A.t -= dt;
+    if (A.t <= 0) {
+      A.t = 0.34 - L * 0.03 + Math.random() * 0.08; let best = null, bd = 1e9, bl = false;
+      for (const e of this.tanks) { if (!e.alive || e.team === k.team) continue; const d = Math.abs(e.x - k.x) + Math.abs(e.y - k.y); if (d > 26) continue; const l = d < 22 && this.los(k.x, k.y, e.x, e.y), sc = d - (l ? 12 : 0); if (sc < bd) { bd = sc; best = e; bl = l; } }
+      if (best !== A.tg || !bl) A.seeT = 0; A.tg = best; A.los = bl; A.err = (Math.random() - 0.5) * (6 - L) * 0.07;
+      const f = this.field[k.team], cx = k.x | 0, cy = k.y | 0; let bv = f[cy * N + cx], bx = cx, by = cy;
+      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { if (!i && !j) continue; const x = cx + i, y = cy + j, c = y * N + x; if (m[c] >= 2) continue; if (i && j && (m[cy * N + x] !== 0 || m[y * N + cx] !== 0 || m[c] !== 0)) continue; const v = f[c] + (i && j ? 0.4 : 0); if (v < bv) { bv = v; bx = x; by = y; } }
+      A.gx = bx + 0.5; A.gy = by + 0.5; A.brick = m[by * N + bx] === 1;
+      A.pt += 1; if (A.pt >= 3) { A.pt = 0; if (Math.abs(k.thr) > 0.4 && Math.abs(k.x - A.px) + Math.abs(k.y - A.py) < 0.25) { A.stuckT = 0.6 + Math.random() * 0.4; A.sdir = Math.random() < 0.5 ? 1 : -1; } A.px = k.x; A.py = k.y; }
+    }
+    const e = A.tg, see = e && e.alive && A.los; let thr, want, dist = 0; if (see) { A.seeT += dt; dist = Math.sqrt((e.x - k.x) * (e.x - k.x) + (e.y - k.y) * (e.y - k.y)); }
+    if (A.stuckT > 0) { A.stuckT -= dt; return [-0.7, A.sdir, false]; }
+    if (see && dist < 7) { const a = Math.atan2(e.y - k.y, e.x - k.x); want = dist < 3.2 ? a + Math.PI : a + A.side * 1.25; thr = 0.55; }      // 贴近后绕着打，太近就后撤
+    else { want = Math.atan2(A.gy - k.y, A.gx - k.x); thr = A.brick ? 0 : 1; }
+    let dh = want - k.ha; dh -= Math.PI * 2 * Math.round(dh / (Math.PI * 2)); if (thr > 0.6 && Math.abs(dh) > 0.9) thr = 0.12;
+    let aim = see ? Math.atan2(e.y - k.y, e.x - k.x) + A.err : A.brick ? Math.atan2(A.gy - k.y, A.gx - k.x) : k.ha, da = aim - k.ta; da -= Math.PI * 2 * Math.round(da / (Math.PI * 2));
+    const tr = (1.6 + L * 0.5) * dt; k.ta += clamp(da, -tr, tr);
+    const fire = Math.abs(da) < 0.08 && ((see && dist < 22 && A.seeT > 0.85 - L * 0.14) || (A.brick && !see));
+    return [thr, clamp(dh * 3, -1, 1), fire];
+  },
+
+  // ---------- 画面 ----------
+  build() {
+    this.built = true; const el = this.el = h('div', { id: 'bf', hidden: true });
+    this.cv = h('canvas', { id: 'bfCv' }); this.g = this.cv.getContext('2d'); this.mini = h('canvas', { id: 'bfMini', width: 132, height: 132 }); this.mg = this.mini.getContext('2d');
+    this.hudEl = h('div', { id: 'bfHud' }); this.msg = h('div', { id: 'bfMsg' }); this.dlg = h('div', { id: 'bfDlg', class: 'dlg', hidden: true });
+    this.stickEl = h('div', { id: 'bfStick', hidden: true }, h('i')); this.fireEl = h('button', { id: 'bfFire', 'aria-label': TXT.bf.fire }, TXT.bf.fire);
+    this.pauseEl = h('button', { id: 'bfPause', class: 'hb', 'aria-label': TXT.pauseT, onclick: () => this.setPaused(!this.paused) }, '‖');
+    el.append(this.cv, this.mini, this.hudEl, this.msg, this.stickEl, this.fireEl, this.pauseEl, h('div', { id: 'bfAim' }), this.dlg); document.getElementById('app').append(el);
+    // 贴图：16×16，直接存成像素
+    const px = (r, g, b) => 0xff000000 | (b << 16) | (g << 8) | r, T = this.tex = [null, new Uint32Array(256), new Uint32Array(256), null, new Uint32Array(256)];
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const row = y >> 2, mort = (y & 3) === 3 || ((x + (row & 1) * 4) & 7) === 7, n = ((x * 7 + y * 13) % 5) * 4;
+      T[1][y * 16 + x] = mort ? px(74, 44, 34) : px(172 + n, 82 + n, 46 + (n >> 1)); T[4][y * 16 + x] = mort || ((x * 5 + y * 3) % 7 === 0) ? px(48, 30, 24) : px(128 + n, 62 + n, 38);
+      const edge = x === 0 || y === 0 || x === 15 || y === 15, riv = (x === 3 || x === 12) && (y === 3 || y === 12); T[2][y * 16 + x] = edge ? px(70, 76, 82) : riv ? px(210, 214, 218) : px(140 + n, 148 + n, 154 + n);
+    }
+    // 操作
+    addEventListener('keydown', e => { if (!this.on) return; if (e.code === 'Escape' || e.code === 'KeyP') { this.setPaused(!this.paused); e.preventDefault(); return; } this.keys[e.code] = true; if (/^(Arrow|Space)/.test(e.code)) e.preventDefault(); });
+    addEventListener('keyup', e => { this.keys[e.code] = false; });
+    addEventListener('blur', () => { this.keys = {}; this.mouseFire = false; });
+    document.addEventListener('visibilitychange', () => { if (document.hidden && this.on && !this.paused && !this.over) this.setPaused(true); });
+    document.addEventListener('mousemove', e => { if (this.on && document.pointerLockElement === this.cv) this.lookAcc += e.movementX * 0.0026; });
+    const S = this.stick, Lk = this.look;
+    el.addEventListener('pointerdown', e => {
+      if (this.paused || this.over || e.target === this.pauseEl || this.dlg.contains(e.target)) return; e.preventDefault(); Game.S.init();
+      if (e.pointerType === 'mouse') { if (document.pointerLockElement !== this.cv) { try { const p = this.cv.requestPointerLock(); if (p && p.catch) p.catch(() => { }); } catch (x) { } } this.mouseFire = true; return; }
+      try { el.setPointerCapture(e.pointerId); } catch (x) { }
+      if (e.target === this.fireEl) { this.fireHeld = true; this.fireId = e.pointerId; if (Lk.id === null) { Lk.id = e.pointerId; Lk.lx = e.clientX; } }
+      else if (e.clientX < innerWidth * 0.45 && S.id === null) { S.id = e.pointerId; S.ox = e.clientX; S.oy = e.clientY; S.x = S.y = 0; this.stickEl.hidden = false; this.stickEl.style.left = e.clientX + 'px'; this.stickEl.style.top = e.clientY + 'px'; this.stickEl.firstChild.style.transform = ''; }
+      else if (Lk.id === null) { Lk.id = e.pointerId; Lk.lx = e.clientX; }
+    });
+    el.addEventListener('pointermove', e => {
+      if (e.pointerId === S.id) { let dx = (e.clientX - S.ox) / 52, dy = (e.clientY - S.oy) / 52; const d = Math.sqrt(dx * dx + dy * dy); if (d > 1) { dx /= d; dy /= d; } S.x = dx; S.y = dy; this.stickEl.firstChild.style.transform = 'translate(' + dx * 40 + 'px,' + dy * 40 + 'px)'; }
+      else if (e.pointerId === Lk.id) { this.lookAcc += (e.clientX - Lk.lx) * 0.0065; Lk.lx = e.clientX; }
+    });
+    const end = e => { if (e.pointerType === 'mouse') { this.mouseFire = false; return; } if (e.pointerId === S.id) { S.id = null; S.x = S.y = 0; this.stickEl.hidden = true; } if (e.pointerId === Lk.id) Lk.id = null; if (e.pointerId === this.fireId) { this.fireHeld = false; this.fireId = null; } };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('contextmenu', e => e.preventDefault());
+    addEventListener('resize', () => { if (this.on) this.resize(); });
+  },
+  resize() {
+    const r = this.el.getBoundingClientRect(), cw = Math.max(200, r.width), ch = Math.max(150, r.height), W = this.W = cw < 700 ? 360 : 560, H = this.H = clamp(Math.round(W * ch / cw / 2) * 2, 140, 480);
+    this.cv.width = W; this.cv.height = H; this.img = this.g.createImageData(W, H); this.buf = new Uint32Array(this.img.data.buffer); this.zbuf = new Float32Array(W); this.g.imageSmoothingEnabled = false;
+    this.fireEl.hidden = !UI.isTouch();
+  },
+  frame(ts) {
+    const dt = Math.min(60, this.last ? ts - this.last : 16); this.last = ts;
+    if (!this.paused && !this.over) { this.acc += dt; let n = 0; while (this.acc >= 16.6667 && n < 5) { this.acc -= 16.6667; n++; this.step(1 / 60); if (this.over) break; } if (n >= 5) this.acc = 0; }
+    this.draw(); if ((this.hudN = (this.hudN | 0) + 1) % 6 === 0) this.hud();
+  },
+  draw() {
+    const W = this.W, H = this.H, buf = this.buf, N = this.N, m = this.m, p = this.me, a = p.ta, ca = Math.cos(a), sa = Math.sin(a), f = (W / 2) / Math.tan(0.62), camH = 0.56, hz = (H >> 1) + Math.round(this.kick * 3), px0 = p.x, py0 = p.y, tex = this.tex, zb = this.zbuf, bhp = this.bhp, tm = this.time;
+    // 天空
+    for (let y = 0; y < hz && y < H; y++) { const t = y / hz, c = 0xff000000 | ((200 - 40 * (1 - t)) << 16) | ((150 + 50 * t) << 8) | ((96 + 84 * t) | 0); buf.fill(c, y * W, y * W + W); }
+    // 地面：一行一行算出每个像素落在哪个格子上
+    for (let y = Math.max(0, hz); y < H; y++) {
+      const d = camH * f / (y - hz + 0.5), fg = d > 34 ? 256 : (d * 7.5) | 0, ig = 256 - fg, sx = d / f; let wx = px0 + d * ca + sa * sx * (W / 2), wy = py0 + d * sa - ca * sx * (W / 2); const dx = -sa * sx, dy = ca * sx; let o = y * W;
+      for (let x = 0; x < W; x++, o++, wx += dx, wy += dy) {
+        const cx = Math.floor(wx), cy = Math.floor(wy); let r, g, b;
+        if (cx < 0 || cy < 0 || cx >= N || cy >= N) { r = 60; g = 64; b = 50; }
+        else if (m[cy * N + cx] === 3) { const w = ((wx * 3 + wy * 2 + tm * 1.5) | 0) & 1; r = 38 + w * 10; g = 92 + w * 12; b = 150 + w * 14; }
+        else { const fx = wx - cx, fy = wy - cy, line = fx < 0.05 || fy < 0.05, ch = (cx + cy) & 1, zone = cy > N - 10 ? 1 : cy < 9 ? 2 : 0; r = line ? 66 : 96 - ch * 8 + (zone === 1 ? 14 : 0) + (zone === 2 ? 16 : 0); g = line ? 72 : 102 - ch * 8 + (zone === 1 ? 8 : 0) - (zone === 2 ? 10 : 0); b = line ? 46 : 64 - ch * 6 - (zone ? 8 : 0); }
+        buf[o] = 0xff000000 | (((b * ig + 190 * fg) >> 8) << 16) | (((g * ig + 196 * fg) >> 8) << 8) | ((r * ig + 176 * fg) >> 8);
+      }
+    }
+    // 墙：每一列射出一条线，碰到墙就画一竖条
+    for (let x = 0; x < W; x++) {
+      const k = (x - W / 2 + 0.5) / f, rx = ca - sa * k, ry = sa + ca * k; let cx = Math.floor(px0), cy = Math.floor(py0);
+      const ddx = Math.abs(1 / rx), ddy = Math.abs(1 / ry), stx = rx < 0 ? -1 : 1, sty = ry < 0 ? -1 : 1; let sdx = (rx < 0 ? px0 - cx : cx + 1 - px0) * ddx, sdy = (ry < 0 ? py0 - cy : cy + 1 - py0) * ddy, side = 0, hit = 0, d = 60;
+      for (let i = 0; i < 220; i++) { if (sdx < sdy) { sdx += ddx; cx += stx; side = 0; } else { sdy += ddy; cy += sty; side = 1; } if (cx < 0 || cy < 0 || cx >= N || cy >= N) break; const c = m[cy * N + cx]; if (c === 1 || c === 2) { hit = c === 1 && bhp[cy * N + cx] < 2 ? 4 : c; d = side ? sdy - ddy : sdx - ddx; break; } }
+      zb[x] = d; if (!hit) continue; if (d < 0.02) d = 0.02;
+      const top = hz - (1 - camH) * f / d, bot = hz + camH * f / d, hgt = bot - top, wxh = side ? px0 + d * rx : py0 + d * ry, tx = ((wxh - Math.floor(wxh)) * 16) | 0, T = tex[hit], y0 = Math.max(0, Math.ceil(top)), y1 = Math.min(H - 1, Math.floor(bot)), fg = d > 34 ? 256 : (d * 7.5) | 0, ig = (256 - fg) * (side ? 200 : 256) >> 8;
+      for (let y = y0; y <= y1; y++) { const c = T[(((y - top) / hgt * 16) & 15) * 16 + tx], r = c & 255, g = (c >> 8) & 255, b = (c >> 16) & 255; buf[y * W + x] = 0xff000000 | (((b * ig + 190 * fg) >> 8) << 16) | (((g * ig + 196 * fg) >> 8) << 8) | ((r * ig + 176 * fg) >> 8); }
+    }
+    const g = this.g; g.putImageData(this.img, 0, 0);
+    // 坦克、炮弹、爆炸：先算出各自离镜头多远，由远到近画；被墙挡住的那几列不画
+    const proj = (wx, wy, wz) => { const dx = wx - px0, dy = wy - py0, dep = dx * ca + dy * sa; if (dep < 0.12) return null; const sd = -dx * sa + dy * ca; return [W / 2 + sd / dep * f, hz - (wz - camH) / dep * f, dep]; };
+    const list = [];
+    for (const t of this.tanks) if (t.alive && t !== p) { const dx = t.x - px0, dy = t.y - py0, dep = dx * ca + dy * sa; if (dep > 0.3 && dep < 46) list.push([dep, 0, t]); }
+    for (const b of this.bullets) { const q = proj(b.x, b.y, 0.5); if (q && q[2] < 46) list.push([q[2], 1, b, q]); }
+    for (const e of this.fx) { const q = proj(e.x, e.y, e.z); if (q && q[2] < 46) list.push([q[2], 2, e, q]); }
+    list.sort((u, v) => v[0] - u[0]);
+    for (const it of list) {
+      if (it[1] === 0) this.drawTank(g, it[2], it[0], proj, f, W, H);
+      else if (it[1] === 1) { const q = it[3], x = q[0] | 0; if (x < 0 || x >= W || zb[x] < q[2]) continue; const s = Math.max(1.5, f * 0.07 / q[2]); g.fillStyle = it[2].team ? '#ffb39c' : '#fff3a6'; g.fillRect(q[0] - s / 2, q[1] - s / 2, s, s); }
+      else { const q = it[3], e = it[2], x = q[0] | 0; if (x < 0 || x >= W || zb[x] < q[2] - 0.6) continue; const t = e.t / e.d, s = f * (e.big === 2 ? 0.9 : e.big ? 0.6 : 0.22) * (0.3 + t * 0.9) / q[2]; g.globalAlpha = 1 - t; g.fillStyle = t < 0.35 ? '#fff6c8' : e.big ? '#f08a2a' : '#ffd070'; g.beginPath(); g.arc(q[0], q[1], s, 0, 6.3); g.fill(); if (e.big) { g.fillStyle = '#4a4038'; g.beginPath(); g.arc(q[0], q[1] - s * t, s * 0.6 * t, 0, 6.3); g.fill(); } g.globalAlpha = 1; }
+    }
+    // 自己的炮管
+    const kx = this.kick * 4, bw = W * 0.028; g.fillStyle = '#2c2f24'; g.beginPath(); g.moveTo(W / 2 - bw * 2.4, H); g.lineTo(W / 2 - bw * 0.5, H * 0.74 + kx); g.lineTo(W / 2 + bw * 0.5, H * 0.74 + kx); g.lineTo(W / 2 + bw * 2.4, H); g.fill();
+    g.fillStyle = '#4c5136'; g.beginPath(); g.moveTo(W / 2 - bw * 1.5, H); g.lineTo(W / 2 - bw * 0.3, H * 0.74 + kx); g.lineTo(W / 2 + bw * 0.1, H * 0.74 + kx); g.lineTo(W / 2 + bw * 0.4, H); g.fill();
+    if (this.kick > 0.5) { g.fillStyle = '#fff3a6'; g.globalAlpha = (this.kick - 0.5) * 2; g.beginPath(); g.arc(W / 2, H * 0.72, W * 0.04, 0, 6.3); g.fill(); g.globalAlpha = 1; }
+    if (p.hitT > 0 || !p.alive) { g.fillStyle = p.alive ? 'rgba(220,40,20,' + p.hitT * 1.6 + ')' : 'rgba(40,0,0,.55)'; g.fillRect(0, 0, W, H); }
+    this.drawMini();
+  },
+  drawTank(g, t, dep, proj, f, W, H) {
+    const zb = this.zbuf, c0 = proj(t.x, t.y, 0.3); if (!c0) return; const rad = f * 0.6 / dep, xa = Math.max(0, Math.floor(c0[0] - rad)), xb = Math.min(W - 1, Math.ceil(c0[0] + rad)); if (xa > xb) return;
+    let any = false, run = -1; g.save(); g.beginPath(); for (let x = xa; x <= xb + 1; x++) { const vis = x <= xb && zb[x] > dep - 0.25; if (vis && run < 0) run = x; else if (!vis && run >= 0) { g.rect(run, 0, x - run, H); run = -1; any = true; } } if (!any) { g.restore(); return; } g.clip();
+    const col = TEAM_COLORS[t.team], faces = [], sh = (hex, k) => { const n = parseInt(hex.slice(1), 16), r = Math.min(255, ((n >> 16) & 255) * k) | 0, gg = Math.min(255, ((n >> 8) & 255) * k) | 0, b = Math.min(255, (n & 255) * k) | 0; return 'rgb(' + r + ',' + gg + ',' + b + ')'; };
+    const box = (cx, cy, z0, z1, hx, hy, ang, hex) => {
+      const c = Math.cos(ang), s = Math.sin(ang), P = []; for (let i = 0; i < 8; i++) { const lx = i & 1 ? hx : -hx, ly = i & 2 ? hy : -hy, q = proj(cx + lx * c - ly * s, cy + lx * s + ly * c, i & 4 ? z1 : z0); if (!q) return; P.push(q); }
+      const F = [[4, 5, 7, 6, 1.15], [0, 1, 5, 4, 0.8], [2, 3, 7, 6, 0.8], [0, 2, 6, 4, 0.62], [1, 3, 7, 5, 0.95]];
+      for (const q of F) faces.push([(P[q[0]][2] + P[q[1]][2] + P[q[2]][2] + P[q[3]][2]) / 4, P[q[0]], P[q[1]], P[q[2]], P[q[3]], sh(hex, q[4])]);
+    };
+    const hc = Math.cos(t.ha), hs = Math.sin(t.ha), tc = Math.cos(t.ta), ts = Math.sin(t.ta), flash = t.hitT > 0 ? '#ffffff' : null;
+    box(t.x + hs * 0.25, t.y - hc * 0.25, 0, 0.2, 0.4, 0.08, t.ha, '#3a3c34'); box(t.x - hs * 0.25, t.y + hc * 0.25, 0, 0.2, 0.4, 0.08, t.ha, '#3a3c34');
+    box(t.x, t.y, 0.1, 0.32, 0.36, 0.2, t.ha, flash || col[1]); box(t.x, t.y, 0.32, 0.5, 0.17, 0.16, t.ta, flash || col[0]); box(t.x + tc * 0.36, t.y + ts * 0.36, 0.38, 0.45, 0.24, 0.035, t.ta, '#2a2c26');
+    faces.sort((u, v) => v[0] - u[0]);
+    for (const q of faces) { g.fillStyle = q[5]; g.beginPath(); g.moveTo(q[1][0], q[1][1]); g.lineTo(q[2][0], q[2][1]); g.lineTo(q[3][0], q[3][1]); g.lineTo(q[4][0], q[4][1]); g.fill(); }
+    const top = proj(t.x, t.y, 0.72); if (top && dep < 30) { const w = Math.max(6, f * 0.5 / dep), x = top[0] - w / 2; g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(x - 1, top[1] - 1, w + 2, 3); g.fillStyle = t.shield > 0 ? '#8fd3ff' : col[0]; g.fillRect(x, top[1], w * t.hp / t.max, 1.5); }
+    g.restore();
+  },
+  drawMini() {
+    const N = this.N, g = this.mg, S = 132, p = this.me;
+    if (this.mapDirty || !this.mapCv || this.mapCv.width !== N) { this.mapDirty = false; const c = this.mapCv = this.mapCv && this.mapCv.width === N ? this.mapCv : Object.assign(document.createElement('canvas'), { width: N, height: N }), cg = c.getContext('2d'), im = cg.createImageData(N, N), b = new Uint32Array(im.data.buffer); const col = [0xc0283024, 0xff3a62b4, 0xffa8a09a, 0xffa86a30]; for (let i = 0; i < N * N; i++) b[i] = col[this.m[i]]; cg.putImageData(im, 0, 0); }
+    g.imageSmoothingEnabled = false; g.clearRect(0, 0, S, S); g.drawImage(this.mapCv, 0, 0, S, S); const k = S / N;
+    for (const t of this.tanks) { if (!t.alive || (t.team === 1 && !t.seen) || t === p) continue; g.fillStyle = TEAM_COLORS[t.team][0]; g.fillRect(t.x * k - 1.5, t.y * k - 1.5, 3, 3); }
+    // 自己：白点、视野扇形、车身方向（短线）
+    const x = p.x * k, y = p.y * k; g.fillStyle = 'rgba(255,255,255,.22)'; g.beginPath(); g.moveTo(x, y); g.arc(x, y, 22, p.ta - 0.62, p.ta + 0.62); g.fill();
+    g.strokeStyle = '#f2b80c'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(p.ha) * 9, y + Math.sin(p.ha) * 9); g.stroke(); g.fillStyle = '#fff'; g.fillRect(x - 2, y - 2, 4, 4);
+  },
+  hud() {
+    const p = this.me, T = TXT.bf; let hp = ''; for (let i = 0; i < p.max; i++) hp += '<i class="' + (i < p.hp ? 'on' : '') + '"></i>';
+    const key = this.score.join() + '|' + p.hp + '|' + p.kills + '|' + this.feed.length + '|' + (this.feed.length ? this.feed[this.feed.length - 1].t : 0);
+    if (key !== this.hudKey) { this.hudKey = key; this.hudEl.innerHTML = '<div class="sc"><b class="t0">' + this.score[0] + '</b><span>:</span><b class="t1">' + this.score[1] + '</b><small>/ ' + this.target + '</small></div><div class="hp">' + hp + '</div><div class="kd">' + fmt(T.kd, p.kills, p.deaths) + '</div><div class="feed">' + this.feed.map(f => '<p><span class="t' + f.a.team + '">' + (f.a.human ? T.you : T.team[f.a.team]) + '</span> ▸ <span class="t' + f.b.team + '">' + (f.b.human ? T.you : T.team[f.b.team]) + '</span></p>').join('') + '</div>'; }
+    let s = ''; if (this.startT > 0) s = fmt(T.ready, Math.ceil(this.startT)); else if (!p.alive && !this.over) s = fmt(T.dead, Math.max(1, Math.ceil(p.respawn))); else if (this.time < 14 && !this.over) s = UI.isTouch() ? T.helpTouch : T.helpKey;
+    if (s !== this.msgS) { this.msgS = s; this.msg.textContent = s; }
+  },
+};
+
+Object.assign(UI, {
+  bfScreen() {
+    const o = BF.opt, T = TXT.bf;
+    return this.frame(TXT.menu.bf[0], [h('p', { class: 'lead', text: T.intro }),
+      this.row(T.size, this.seg([8, 12, 16].map(n => [n, n + ' v ' + n]), o.n, v => { o.n = v; })),
+      this.row(T.map, this.seg([[48, T.maps[0]], [64, T.maps[1]], [96, T.maps[2]]], o.size, v => { o.size = v; }, 'wrap')),
+      this.row(TXT.net.aiLvl, this.lvlSeg(o.ai, v => { o.ai = v; })),
+      h('h3', { class: 'sec', text: T.how }), h('ul', { class: 'bul' }, T.howList.map(t => h('li', { text: t })))],
+      h('button', { class: 'primary', onclick: () => BF.start() }, T.go), () => this.show('main'));
+  },
+});
 
 /* =====================================================================
  * 模块 14 · 启动
