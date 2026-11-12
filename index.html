@@ -16,11 +16,13 @@
         if (R.left) return Promise.reject({ code: 'invalid_argument' });
         var next = Object.assign({}, R.mine); for (var k in patch) { if (patch[k] === null) delete next[k]; else next[k] = patch[k]; }
         if (new TextEncoder().encode(JSON.stringify(next)).length > 4096) return Promise.reject({ code: 'invalid_argument', message: 'over 4 KiB' });
-        R.mine = next; R.notify(); if (!R.sendT) R.sendT = setTimeout(flush, 33); return Promise.resolve();
+        R.mine = next; R.notify(); if (!R.sendT) R.sendT = setTimeout(flush, 10); return Promise.resolve();
       },
       peers: function () { if (R.snap) return R.snap; var a = [Object.freeze({ peer: me, by: null, isMe: true, sameTab: true, kind: 'viewer', guest: false, presence: Object.freeze(JSON.parse(JSON.stringify(R.mine))), updatedAt: Date.now() })]; R.peers.forEach(function (q, p) { a.push(Object.freeze({ peer: p, by: null, isMe: false, sameTab: false, kind: 'viewer', guest: false, presence: q, updatedAt: R.at.get(p) || 0 })); }); return (R.snap = Object.freeze(a)); },
       onPeers: function (fn) { R.subs.add(fn); Promise.resolve().then(function () { fn({ peers: api.peers(), joined: api.peers(), left: [], updated: [] }); }); return function () { R.subs.delete(fn); }; },
       emit: function () { return Promise.resolve(); }, on: function () { return function () { }; }, connected: function () { return up; }, onConnection: function (fn) { Promise.resolve().then(function () { fn(up); }); return function () { }; },
+      // 让服务器来排每一帧的指令：每个人的操作只需往返服务器一趟，不用再经房主转手
+      sequence: function (o) { send({ t: 'seq', room: name, id: o.id, cids: o.cids }); }, sequenceEnd: function (id) { send({ t: 'seqend', room: name, id: id }); },
       leave: function () { if (R.left || !name) return Promise.resolve(); R.left = true; rooms.delete(name); send({ t: 'leave', room: name }); return Promise.resolve(); },
       join: function (n) {
         if (!/^[a-z0-9][a-z0-9_.-]{0,47}$/.test(n)) return Promise.reject({ code: 'invalid_argument' });
@@ -2691,7 +2693,7 @@ const Game = {
     this.ready = [!this.face, !this.face]; this.countdown = 0;
     if (cfg.sub === 'tutorial') this.tut = { step: -1, t: 0 };
     if (this.demo) { this.state = 'play'; this.S.muted = true; }
-    else { this.S.muted = false; this.state = 'intro'; this.intro = this.face ? 1e9 : net ? (net.host ? 150 : 60) : 100; UI.enterGame(); this.S.play('start'); this.S.music(cfg.boss >= 0 ? 'boss' : 'battle'); }
+    else { this.S.muted = false; this.state = 'intro'; this.intro = this.face ? 1e9 : net ? (net.host && !net.seq ? 150 : 60) : 100; UI.enterGame(); this.S.play('start'); this.S.music(cfg.boss >= 0 ? 'boss' : 'battle'); }
     UI.layout();
   },
   startDemo() {
@@ -3146,7 +3148,7 @@ const Net = {
   opts: { k: 'duel', size: 2, ai: 3, map: 13, theme: -1, mut: [], ch: 0, lv: 0, diff: 'normal' },
   my: { tm: 0, rd: 0 }, g: null, seenG: '', hostCid: '', qm: null,
   // 对局内
-  slot: -1, nh: 0, hostT: 0, peersC: null, bgTimer: 0, qmTimer: 0, cur: [], kn: 0, pend: null, log: [], bj: 0, bt: 0, ic: [], ac: [], away: [], rushing: false, stallT: 0, hashes: null, ds: null, served: null, xfer: null, queue: [],
+  slot: -1, nh: 0, seq: false, hostT: 0, peersC: null, bgTimer: 0, qmTimer: 0, cur: [], kn: 0, pend: null, log: [], bj: 0, bt: 0, ic: [], ac: [], away: [], rushing: false, stallT: 0, hashes: null, ds: null, served: null, xfer: null, queue: [],
   jit: 2, stalls: 0, fcS: [], dcS: [], sfc: 0, sdc: 0, sld: 0, pf: false, pd: -1, sb: 0, sic: 0, sac: 0, pic: 0, pac: 0, ackT: 0, myHash: null, sentHash: null, rqN: 0, rqI: 0, rqT: 0, rqFrom: -1, resyncs: 0, dsIgnore: 0, sgN: 0, sgSeen: null, worker: null, bgLast: 0, maxc: NET_MAXC, done: false,
 
   myCid() { if (this.cid) return this.cid; let c = ''; try { c = sessionStorage.getItem('aitank.cid') || ''; } catch (e) { } if (!/^[a-z0-9]{8}$/.test(c)) { c = ''; for (let i = 0; i < 8; i++) c += 'abcdefghijklmnopqrstuvwxyz0123456789'[(Math.random() * 36) | 0]; try { sessionStorage.setItem('aitank.cid', c); } catch (e) { } } return (this.cid = c); },
@@ -3215,10 +3217,11 @@ const Net = {
     if (!this.ctl) return; const R = this.roster(), now = performance.now(), hp = R.find(r => r.host);
     if (this.host) {
       if (hp && !hp.me) return this.fail('taken');
-      if (this.done && this.g && this.dat) { this.serve(this.datPeers()); this.pushDat(); }      // 本局已结束：继续把最后一段指令发给还没追上的人
+      if (this.done && this.g && this.dat && !this.seq) { this.serve(this.datPeers()); this.pushDat(); }      // 本局已结束：继续把最后一段指令发给还没追上的人
       if (this.auto && this.phase === 'lobby') { const mate = R.find(r => !r.me && r.ready); if (mate) this.start(); else if (now - this.joinedAt > 9000) { this.close(); this.quick(); UI.show('online'); return; } }
     } else {
-      if (!hp) { if (!this.lostT) this.lostT = now; if (now - this.lostT > (this.hostCid ? 5000 : 4500)) return this.fail(this.hostCid ? 'hostgone' : 'nohost'); }
+      if (!hp && this.seq && Game.net === this && !this.done) { /* 服务器在排指令：房主掉线不影响这一局，打完再说 */ }
+      else if (!hp) { if (!this.lostT) this.lostT = now; if (now - this.lostT > (this.hostCid ? 5000 : 4500)) return this.fail(this.hostCid ? 'hostgone' : 'nohost'); }
       else {
         this.lostT = 0; this.hostCid = hp.cid; const q = hp.q, g = q.g;
         this.opts = this.normOpts(q.op); this.phase = q.st === 'play' ? 'play' : q.st === 'over' ? 'over' : 'lobby';
@@ -3249,7 +3252,7 @@ const Net = {
     if (!this.host || !this.ctl) return; const o = this.opts = this.normOpts(this.opts);
     const players = this.roster().filter(r => r.me || r.ready).slice(0, this.cap(o));
     const cfg = this.buildCfg(players);
-    this.g = { id: Date.now().toString(36) + ((Math.random() * 1296) | 0).toString(36), cfg: JSON.stringify(cfg), cids: players.map(p => p.cid), names: players.map(p => p.name) };
+    this.g = { id: Date.now().toString(36) + ((Math.random() * 1296) | 0).toString(36), cfg: JSON.stringify(cfg), cids: players.map(p => p.cid), names: players.map(p => p.name), seq: this.dat && typeof this.dat.sequence === 'function' ? 1 : 0 };      // seq：服务器能排指令（独立部署版），就不经房主绕一趟
     this.phase = 'play'; this.pushCtl(); this.begin(this.g);
   },
   metaOf(cfg) {
@@ -3279,30 +3282,31 @@ const Net = {
   begin(g) {
     let cfg = null; try { cfg = JSON.parse(g.cfg); } catch (e) { }
     this.seenG = g.id; if (!this.safeCfg(cfg)) { UI.toast(TXT.net.err.cfg, 'bad'); return; }
-    this.g = g; this.slot = g.cids.indexOf(this.cid); this.nh = cfg.humans.length;
+    this.g = g; this.slot = g.cids.indexOf(this.cid); this.nh = cfg.humans.length; this.seq = !!(g.seq && this.dat && typeof this.dat.sequence === 'function');
     this.cur = new Array(this.nh).fill(0); this.kn = 0; this.pend = new Map(); this.log = []; this.bj = 0; this.bt = 0; this.ic = []; this.ac = []; this.away = [];
     this.hostT = 0; this.peersC = null; this.rushing = false; this.stallT = 0; this.jit = 2; this.stalls = 0; this.fcS = []; this.dcS = []; this.hashes = new Map(); this.ds = new Map(); this.served = new Map(); this.xfer = null; this.queue = []; this.maxc = NET_MAXC; this.done = false;
     this.sb = -1; this.pic = this.sic; this.pac = this.sac; this.ackT = 0; this.myHash = null; this.sentHash = null; this.rqN = (Math.random() * 1e6) | 0; this.rqI = 0; this.rqT = 0; this.rqFrom = -1; this.resyncs = 0; this.dsIgnore = 0;      // 请求编号随机起步：刷新页面重进后不会和上一次的撞号
     this.sgSeen = new Map(); for (const [c, q] of this.datPeers()) if (Array.isArray(q.sg)) this.sgSeen.set(c, q.sg[0]);
     this.my.rd = 0; if (!this.host) this.pushCtl();
     try { Game.start(cfg, this.metaOf(cfg)); } catch (e) { Game.net = null; Game.startDemo(); UI.show('room'); UI.toast(TXT.net.err.cfg, 'bad'); return; }
-    if (this.dat) this.dat.presence(this.host ? { c: this.cid, h: 1, id: g.id, t: 0, b: 0, d: [], lg: null, ds: [] } : { c: this.cid, h: null, a: 0, i: [0, this.sic, this.sac, this.sfc, this.sdc, this.sld], hs: null, rq: null, la: null }).catch(() => { });
-    if (this.host) this.startBg();
+    if (this.host && this.seq) this.dat.sequence({ id: g.id, cids: g.cids });
+    if (this.dat) this.dat.presence(this.host && !this.seq ? { c: this.cid, h: 1, id: g.id, t: 0, b: 0, d: [], lg: null, ds: [] } : { c: this.cid, h: null, a: 0, i: [0, this.sic, this.sac, this.sfc, this.sdc, this.sld], hs: null, rq: null, la: null }).catch(() => { });
+    if (this.host && !this.seq) this.startBg();
   },
-  finished() { this.done = true; UI.banner(''); if (this.host) { this.pushDat(); this.phase = 'over'; this.pushCtl(); this.stopBg(); } },
+  finished() { this.done = true; UI.banner(''); if (this.host) { if (this.seq) { try { this.dat.sequenceEnd(this.g.id); } catch (e) { } } else this.pushDat(); this.phase = 'over'; this.pushCtl(); this.stopBg(); } },
   // 同一个人刷新页面后，旧页面的状态可能还会残留一小会儿：同一编号只认最近更新的那份
   datPeers() { const m = new Map(), at = {}; if (this.dat) for (const p of this.dat.peers()) { const q = p.presence; if (q && p.kind === 'viewer' && typeof q.c === 'string' && !(at[q.c] >= p.updatedAt)) { at[q.c] = p.updatedAt; m.set(q.c, q); } } return m; },
 
   // ---------- 对局：每个渲染帧推进 ----------
   drive(dt) {
     const G = Game, w = G.w; if (!w || G.ended || !this.dat || !this.g) return;
-    if (this.host) {
+    if (this.host && !this.seq) {
       G.acc += dt * (w.over && w.overT < 30 ? 0.3 : 1); const cap = dt > 120 ? 80 : 6; let n = 0;
       while (G.acc >= STEP && n < cap) { G.acc -= STEP; n++; this.hostTick(); if (G.ended) return; }
       if (n >= cap) G.acc = 0;
       this.serve(); this.signals(); return;
     }
-    const peers = this.datPeers(), f = peers.get(this.hostCid);
+    const peers = this.datPeers(), f = peers.get(this.seq ? '~seq' : this.hostCid);
     if (f && f.h === 1 && f.id === this.g.id) {
       if (!this.integrate(f)) this.request();
       this.readLog(f);
