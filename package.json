@@ -1,0 +1,1 @@
+{ "name": "ai-tank", "version": "1.0.0", "private": true, "description": "AI 坦克大战：网页 + 联机服务器", "scripts": { "start": "node server.js" }, "engines": { "node": ">=18" } }
